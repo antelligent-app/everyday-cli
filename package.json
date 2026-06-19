@@ -1,19 +1,47 @@
 {
-  "name": "everyday-client",
+  "name": "@koushikroy/everyday-cli",
   "version": "1.0.0",
-  "description": "TypeScript project",
+  "description": "CLI and client library for EverydaySeries API - search and filter SAM.gov opportunities",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "everyday-cli": "dist/cli.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
+    "dev:cli": "ts-node src/cli.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "prepublishOnly": "npm run build",
+    "example": "ts-node examples/basic-usage.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
+  "keywords": [
+    "everydayseries",
+    "sam.gov",
+    "government",
+    "contracts",
+    "opportunities",
+    "cli",
+    "api-client"
+  ],
+  "author": "Antelligent",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antelligent-app/everyday-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/antelligent-app/everyday-cli/issues"
+  },
+  "homepage": "https://github.com/antelligent-app/everyday-cli#readme",
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.3",
@@ -25,5 +53,8 @@
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

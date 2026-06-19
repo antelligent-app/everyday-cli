@@ -1,8 +1,13 @@
-export function hello(name: string): string {
-  return `Hello, ${name}!`;
-}
-
-// Example usage
-if (require.main === module) {
-  console.log(hello("TypeScript"));
-}
+export { EsClient } from './client';
+export type {
+  EsClientConfig,
+  FlowNode,
+  FlowResponse,
+  RunFlowResult,
+  FlowValue,
+  NodeError,
+  MultiValueTypes,
+  ModelInputType,
+  SourceTarget,
+  NodeType
+} from './types';

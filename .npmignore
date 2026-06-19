@@ -1,0 +1,34 @@
+# Source files - only include built files in npm package
+src/
+test/
+*.test.ts
+
+# Configuration files
+tsconfig.json
+jest.config.js
+.eslintrc.js
+.prettierrc
+
+# Development files
+.git/
+.gitignore
+node_modules/
+
+# Documentation for development
+.vscode/
+.idea/
+
+# Build artifacts that should be excluded
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package lock files (users should generate their own)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
