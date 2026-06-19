@@ -1,6 +1,6 @@
 {
-  "name": "@koushikroy/everyday-cli",
-  "version": "1.0.0",
+  "name": "@antelligent-app/everyday-cli",
+  "version": "1.0.1",
   "description": "CLI and client library for EverydaySeries API - search and filter SAM.gov opportunities",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
