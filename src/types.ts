@@ -220,3 +220,79 @@ export interface RunFlowResult {
   data?: FlowNode['data'][];
   error?: string;
 }
+
+
+
+
+
+
+
+
+
+// ES DB Types
+
+export interface EsDbClientConfig {
+  endpoint?: string;
+  projectId: string;
+  apiKey: string;
+}
+
+export interface EsRecord {
+  uid: string;
+  tableId: string;
+  storeId: string;
+  createdAt: string;
+  modifiedAt: string;
+  accessRules: string[];
+  payload: Record<string, any>;
+}
+
+export interface EsRecordSet {
+  count: number;
+  items: EsRecord[];
+}
+
+export interface EsAccount {
+  uid: string;
+  emailAddress: string;
+  displayName?: string;
+  isActive: boolean;
+  emailConfirmed: boolean;
+  phoneConfirmed: boolean;
+  createdAt: string;
+  modifiedAt: string;
+}
+
+export interface EsAccountSet {
+  count: number;
+  items: EsAccount[];
+}
+
+export interface EsAsset {
+  uid: string;
+  containerId: string;
+  filename: string;
+  byteSize: number;
+  contentType: string;
+  createdAt: string;
+  modifiedAt: string;
+}
+
+export interface EsAssetSet {
+  count: number;
+  items: EsAsset[];
+}
+
+export interface EsQueryConfig {
+  maxResults?: number;
+  skipCount?: number;
+  sortBy?: Array<{
+    key: string;
+    order: 'ascending' | 'descending';
+  }>;
+  rules?: Array<{
+    key: string;
+    condition: 'equals' | 'notEquals' | 'below' | 'belowOrEquals' | 'above' | 'aboveOrEquals' | 'contains' | 'isEmpty' | 'isNotEmpty' | 'inRange' | 'beginsWith' | 'endsWith';
+    match: any;
+  }>;
+}

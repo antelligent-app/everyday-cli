@@ -1,0 +1,202 @@
+{
+  "$schema": "@antelligent-app/everyday-cli/schema",
+  "version": "1.0.0",
+  "database": {
+    "id": "test_db",
+    "name": "Test Database",
+    "enabled": true
+  },
+  "collections": [
+    {
+      "id": "users",
+      "name": "Users",
+      "enabled": true,
+      "documentSecurity": false,
+      "permissions": [],
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "size": 320,
+          "required": true
+        },
+        {
+          "key": "age",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 150
+        },
+        {
+          "key": "bio",
+          "type": "string",
+          "size": 1000,
+          "required": false
+        },
+        {
+          "key": "isActive",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "email_index",
+          "type": "unique",
+          "attributes": ["email"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "name_index",
+          "type": "key",
+          "attributes": ["name"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "id": "posts",
+      "name": "Blog Posts",
+      "enabled": true,
+      "documentSecurity": false,
+      "permissions": [],
+      "attributes": [
+        {
+          "key": "title",
+          "type": "string",
+          "size": 256,
+          "required": true
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "size": 10000,
+          "required": true
+        },
+        {
+          "key": "authorId",
+          "type": "string",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "published",
+          "type": "boolean",
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "publishDate",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "key": "views",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "size": 50,
+          "required": false,
+          "array": true
+        },
+        {
+          "key": "status",
+          "type": "enum",
+          "elements": ["draft", "published", "archived"],
+          "required": false,
+          "default": "draft"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "author_index",
+          "type": "key",
+          "attributes": ["authorId"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "published_date_index",
+          "type": "key",
+          "attributes": ["published", "publishDate"],
+          "orders": ["DESC", "DESC"]
+        }
+      ]
+    },
+    {
+      "id": "comments",
+      "name": "Comments",
+      "enabled": true,
+      "documentSecurity": false,
+      "permissions": [],
+      "attributes": [
+        {
+          "key": "postId",
+          "type": "string",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "size": 128,
+          "required": true
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "size": 2000,
+          "required": true
+        },
+        {
+          "key": "likes",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "min": 0
+        }
+      ],
+      "indexes": [
+        {
+          "key": "post_index",
+          "type": "key",
+          "attributes": ["postId"],
+          "orders": ["ASC"]
+        }
+      ]
+    }
+  ],
+  "buckets": [
+    {
+      "id": "avatars",
+      "name": "User Avatars",
+      "enabled": true,
+      "maximumFileSize": 5242880,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
+      "compression": "gzip",
+      "encryption": true,
+      "antivirus": true
+    },
+    {
+      "id": "post_images",
+      "name": "Post Images",
+      "enabled": true,
+      "maximumFileSize": 10485760,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
+      "compression": "gzip",
+      "encryption": true,
+      "antivirus": true
+    }
+  ]
+}
