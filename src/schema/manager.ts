@@ -632,14 +632,33 @@ export class SchemaManager {
    * Map Appwrite attribute to our format
    */
   private mapAttributeFromAppwrite(attr: any): AttributeDefinition {
+    // For integer attributes, only include min/max if they are safe integers
+    // Appwrite may return values outside JavaScript's safe integer range
+    let min = attr.min;
+    let max = attr.max;
+
+    if (attr.type === 'integer') {
+      // Check if min is a safe integer, otherwise omit it
+      if (min !== undefined && !Number.isSafeInteger(min)) {
+        console.warn(`Warning: Attribute "${attr.key}" has min value ${min} outside safe integer range. Omitting min from schema.`);
+        min = undefined;
+      }
+
+      // Check if max is a safe integer, otherwise omit it
+      if (max !== undefined && !Number.isSafeInteger(max)) {
+        console.warn(`Warning: Attribute "${attr.key}" has max value ${max} outside safe integer range. Omitting max from schema.`);
+        max = undefined;
+      }
+    }
+
     return {
       key: attr.key,
       type: attr.type,
       required: attr.required,
       array: attr.array,
       size: attr.size,
-      min: attr.min,
-      max: attr.max,
+      min: min,
+      max: max,
       default: attr.default,
       elements: attr.elements,
       relatedCollection: attr.relatedCollection,
