@@ -1,7 +1,7 @@
 {
   "name": "@antelligent-app/everyday-cli",
   "version": "1.0.2",
-  "description": "CLI and client library for EverydaySeries API - search and filter SAM.gov opportunities",
+  "description": "TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -26,12 +26,15 @@
   },
   "keywords": [
     "everydayseries",
-    "sam.gov",
-    "government",
-    "contracts",
-    "opportunities",
     "cli",
-    "api-client"
+    "api-client",
+    "typescript",
+    "database",
+    "appwrite",
+    "schema-management",
+    "flow-execution",
+    "automation",
+    "workflow"
   ],
   "author": "Antelligent",
   "license": "UNLICENSED",

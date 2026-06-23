@@ -1,40 +1,62 @@
-# everyday-cli
+# @antelligent-app/everyday-cli
 
-TypeScript client and CLI for EverydaySeries API - Execute flows, filter nodes, and extract data with full type safety.
+[![npm version](https://img.shields.io/npm/v/@antelligent-app/everyday-cli.svg)](https://www.npmjs.com/package/@antelligent-app/everyday-cli)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+
+TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety.
 
 ## Features
 
-- 🚀 **Simple API** - Run flows with just a flow ID and key-value parameters
-- 📦 **Flexible Data Access** - Get full nodes or extract data only
-- 🔍 **Type-Safe** - 48 node types with full TypeScript support
+- 🚀 **Flow Execution** - Run flows with the EsClient API
+- 🗄️ **Database Operations** - Complete CRUD operations with EsDbClient
+- 📋 **Schema Management** - Define, validate, and sync database schemas
+- 🔍 **Type-Safe** - Full TypeScript support with 48+ node types
 - 🛠️ **CLI & Library** - Use as command-line tool or import in your code
-- ⚡ **Lightweight** - ~52KB package size
+- ⚡ **Lightweight** - Minimal dependencies, production-ready
 - 🎯 **Helper Methods** - Filter by node type, extract values, parse JSON
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Flow Execution (EsClient)](#flow-execution-esclient)
+  - [Database Operations (EsDbClient)](#database-operations-esdbclient)
+  - [Schema Management](#schema-management)
+- [CLI Usage](#cli-usage)
+- [API Reference](#api-reference)
+  - [EsClient API](#esclient-api)
+  - [EsDbClient API](#esdbclient-api)
+  - [Schema Commands](#schema-commands)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [TypeScript Types](#typescript-types)
+- [Development](#development)
+- [License](#license)
 
 ## Installation
 
-### From GitHub
-
-```bash
-npm install antelligent-app/everyday-cli
-# or
-npm install github:antelligent-app/everyday-cli
-```
-
-### From npm (once published)
+### From npm (recommended)
 
 ```bash
 npm install @antelligent-app/everyday-cli
 ```
 
+### From GitHub
+
+```bash
+npm install github:antelligent-app/everyday-cli
+```
+
 ## Quick Start
 
-### As a Library
+### Flow Execution (EsClient)
+
+Execute flows and process results with the EsClient:
 
 ```typescript
-import { EsClient } from 'everyday-cli';
+import { EsClient } from '@antelligent-app/everyday-cli';
 
-// Initialize the client with your API key and slug
+// Initialize the client
 const client = new EsClient({
   apiKey: 'es-your-api-key-here',
   slug: 'my-project-slug'
@@ -47,10 +69,10 @@ const result = await client.run('your-flow-id', {
   subject: 'Test Email'
 });
 
-// Option 1: Access full nodes (with metadata, source, target)
+// Access full nodes (with metadata, source, target)
 console.log(result.nodes);
 
-// Option 2: Access just the data (cleaner, lighter)
+// Access just the data (cleaner, lighter)
 console.log(result.data);
 
 // Filter nodes by type (type-safe with autocomplete)
@@ -62,11 +84,85 @@ const textData = client.getNodesDataByType(result.nodes, 'text_output');
 // Extract and parse values (auto-parses JSON strings)
 const firstOutput = client.getNodeByType(result.nodes, 'text_output');
 const value = client.getNodeValue(firstOutput);
-
-console.log(value);
 ```
 
-### As a CLI
+### Database Operations (EsDbClient)
+
+Perform CRUD operations on your database:
+
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli';
+
+// Initialize the database client
+const db = new EsDbClient({
+  projectId: 'your-project-id',
+  apiKey: 'your-api-key',
+  endpoint: 'https://provider.everydayseries.ai/v1' // optional
+});
+
+// Create a record
+const user = await db.addRecord('database_id', 'users', {
+  name: 'John Doe',
+  email: 'john@example.com',
+  age: 30
+});
+
+// Read a record
+const fetchedUser = await db.fetchRecord('database_id', 'users', user.uid);
+
+// Update a record
+const updated = await db.modifyRecord('database_id', 'users', user.uid, {
+  age: 31
+});
+
+// Query records with filters
+const activeUsers = await db.fetchRecords('database_id', 'users', {
+  rules: [
+    { key: 'isActive', condition: 'equals', match: true }
+  ],
+  maxResults: 10,
+  sortBy: [{ key: 'createdAt', order: 'descending' }]
+});
+
+// Delete a record
+await db.removeRecord('database_id', 'users', user.uid);
+
+// Account management
+const account = await db.registerAccount(
+  'user@example.com',
+  'SecurePassword123!',
+  'Display Name'
+);
+
+// File storage
+const asset = await db.storeAsset('bucket_id', fileBlob);
+const downloadUrl = db.getAssetRetrievalUrl('bucket_id', asset.uid);
+```
+
+### Schema Management
+
+Define and manage database schemas with the CLI:
+
+```bash
+# Initialize a new schema
+everyday-cli schema init --database-id main_db --database-name "Main Database"
+
+# Validate your schema
+everyday-cli schema validate
+
+# Push schema to remote server
+everyday-cli schema push --api-key xxx --project-id yyy
+
+# Pull schema from remote server
+everyday-cli schema pull --database-id main_db
+
+# View schema information
+everyday-cli schema info
+```
+
+## CLI Usage
+
+### Flow Execution
 
 ```bash
 # Basic usage
@@ -83,56 +179,35 @@ everyday-cli flow-id -k es-xxx -s slug -v '{"q":"search"}' -n text_output
 everyday-cli --help
 ```
 
-**CLI Options:**
+**Flow Options:**
 - `-k, --api-key` - API key (or use `EVERYDAY_API_KEY` env var)
 - `-s, --slug` - Flow execution slug
 - `-v, --value` - JSON key-value pairs (all values converted to strings)
 - `-n, --node-type` - Filter output by node type
 - `-h, --help` - Show help
 
-## Examples
+### Schema Commands
 
-### Email Flow Example
+```bash
+# Initialize schema
+everyday-cli schema init [-d database-id] [-n database-name] [-f]
 
-```typescript
-const client = new EsClient({
-  apiKey: 'es-your-key',
-  slug: 'email-automation'
-});
+# Validate schema
+everyday-cli schema validate [-p path/to/schema.json]
 
-const result = await client.run('email-flow-id', {
-  email: 'recipient@example.com',
-  subject: 'Automated Email',
-  content: 'This email was sent via EverydaySeries!'
-});
+# Push to server
+everyday-cli schema push [--dry-run] [--api-key key] [--project-id id]
 
-if (result.success) {
-  const outputs = client.getNodesDataByType(result.nodes, 'text_output');
-  console.log('Email sent:', outputs);
-}
-```
+# Pull from server
+everyday-cli schema pull [--database-id id] [--api-key key] [--project-id id]
 
-### Working with Different Node Types
-
-```typescript
-// Get all available node types from result
-const nodeTypes = [...new Set(result.nodes.map(n => n.type))];
-console.log('Available types:', nodeTypes);
-
-// Filter by multiple types
-const aiNodes = [
-  ...client.getNodesByType(result.nodes, 'prompt_ai'),
-  ...client.getNodesByType(result.nodes, 'tool_ai')
-];
-
-// Extract specific data fields
-const labels = result.data?.map(d => d.label);
-const values = result.data?.map(d => d.value);
+# Show info
+everyday-cli schema info [-p path/to/schema.json]
 ```
 
 ## API Reference
 
-### EsClient
+### EsClient API
 
 #### Constructor
 
@@ -140,29 +215,26 @@ const values = result.data?.map(d => d.value);
 new EsClient(config: EsClientConfig)
 ```
 
-**Parameters:**
-- `config.apiKey` (required) - Your EverydaySeries API key
-- `config.slug` (required) - Slug for flow execution
-- `config.baseUrl` (optional) - API base URL (default: `https://app.everydayseries.ai`)
+**Config:**
+- `apiKey` (required) - Your EverydaySeries API key
+- `slug` (required) - Slug for flow execution
+- `baseUrl` (optional) - API base URL (default: `https://app.everydayseries.ai`)
 
 #### Methods
 
 ##### `run(id, value)`
 
-Run a flow by ID with a key-value object where all values must be strings.
+Execute a flow by ID with a key-value object where all values must be strings.
 
 ```typescript
-await client.run('flow-id', {
-  key1: 'value1',
-  key2: 'value2'
-});
+await client.run('flow-id', { key1: 'value1', key2: 'value2' });
 ```
 
-Returns: `Promise<RunFlowResult>`
+**Returns:** `Promise<RunFlowResult>`
 
 ##### `getNodesByType(nodes, nodeType)`
 
-Filter nodes by type.
+Filter nodes by type with type-safe autocomplete.
 
 ```typescript
 const textNodes = client.getNodesByType(result.nodes, 'text_output');
@@ -200,6 +272,356 @@ Get data from nodes of a specific type.
 const textData = client.getNodesDataByType(result.nodes, 'text_output');
 ```
 
+### EsDbClient API
+
+#### Constructor
+
+```typescript
+new EsDbClient(config: EsDbClientConfig)
+```
+
+**Config:**
+- `projectId` (required) - Your project ID
+- `apiKey` (required) - Your API key
+- `endpoint` (optional) - API endpoint (default: `https://provider.everydayseries.ai/v1`)
+
+#### Record Operations
+
+##### `addRecord(storeId, tableId, payload, recordId?)`
+
+Create a new record in a collection.
+
+```typescript
+const record = await db.addRecord('db_id', 'collection_id', { name: 'John' });
+```
+
+##### `fetchRecord(storeId, tableId, recordId)`
+
+Retrieve a single record by ID.
+
+```typescript
+const record = await db.fetchRecord('db_id', 'collection_id', 'record_id');
+```
+
+##### `modifyRecord(storeId, tableId, recordId, payload)`
+
+Update an existing record.
+
+```typescript
+const updated = await db.modifyRecord('db_id', 'collection_id', 'record_id', { age: 31 });
+```
+
+##### `removeRecord(storeId, tableId, recordId)`
+
+Delete a record.
+
+```typescript
+await db.removeRecord('db_id', 'collection_id', 'record_id');
+```
+
+##### `fetchRecords(storeId, tableId, config?)`
+
+Query records with filters, sorting, and pagination.
+
+```typescript
+const results = await db.fetchRecords('db_id', 'collection_id', {
+  rules: [{ key: 'age', condition: 'above', match: 25 }],
+  sortBy: [{ key: 'name', order: 'ascending' }],
+  maxResults: 10,
+  skipCount: 0
+});
+```
+
+**Filter Conditions:**
+- `equals`, `notEquals`
+- `below`, `belowOrEquals`, `above`, `aboveOrEquals`
+- `contains`, `beginsWith`, `endsWith`
+- `isEmpty`, `isNotEmpty`
+- `inRange`
+
+##### `searchRecords(storeId, tableId, rules, maxResults?, skipCount?)`
+
+Advanced search with custom filter rules.
+
+```typescript
+const results = await db.searchRecords('db_id', 'collection_id', [
+  { key: 'status', condition: 'equals', match: 'active' },
+  { key: 'age', condition: 'above', match: 18 }
+], 10, 0);
+```
+
+#### Account Operations
+
+##### `registerAccount(emailAddress, credential, displayName?)`
+
+Create a new user account.
+
+```typescript
+const account = await db.registerAccount('user@example.com', 'password123', 'John Doe');
+```
+
+##### `fetchAccount(accountId)`
+
+Get account details.
+
+```typescript
+const account = await db.fetchAccount('account_id');
+```
+
+##### `modifyAccount(accountId, changes)`
+
+Update account information.
+
+```typescript
+const updated = await db.modifyAccount('account_id', {
+  displayName: 'New Name',
+  emailAddress: 'new@example.com'
+});
+```
+
+##### `removeAccount(accountId)`
+
+Delete an account.
+
+```typescript
+await db.removeAccount('account_id');
+```
+
+##### `fetchAccounts(maxResults?, skipCount?)`
+
+List all accounts with pagination.
+
+```typescript
+const accounts = await db.fetchAccounts(10, 0);
+```
+
+#### Asset Storage Operations
+
+##### `storeAsset(containerId, resource, assetId?)`
+
+Upload a file to storage.
+
+```typescript
+const asset = await db.storeAsset('bucket_id', fileBlob);
+```
+
+##### `fetchAsset(containerId, assetId)`
+
+Get asset metadata.
+
+```typescript
+const asset = await db.fetchAsset('bucket_id', 'asset_id');
+```
+
+##### `getAssetRetrievalUrl(containerId, assetId)`
+
+Generate download URL for an asset.
+
+```typescript
+const url = db.getAssetRetrievalUrl('bucket_id', 'asset_id');
+```
+
+##### `getAssetPreviewUrl(containerId, assetId)`
+
+Generate preview URL for an asset.
+
+```typescript
+const url = db.getAssetPreviewUrl('bucket_id', 'asset_id');
+```
+
+##### `removeAsset(containerId, assetId)`
+
+Delete an asset.
+
+```typescript
+await db.removeAsset('bucket_id', 'asset_id');
+```
+
+##### `fetchAssets(containerId, maxResults?, skipCount?)`
+
+List assets in a container.
+
+```typescript
+const assets = await db.fetchAssets('bucket_id', 10, 0);
+```
+
+### Schema Commands
+
+The schema management system allows you to define database structure as code and synchronize it with your Appwrite backend.
+
+#### Schema File Format
+
+Create a `schema.json` file:
+
+```json
+{
+  "$schema": "@antelligent-app/everyday-cli/schema",
+  "version": "1.0.0",
+  "database": {
+    "id": "main_db",
+    "name": "Main Database"
+  },
+  "collections": [
+    {
+      "id": "users",
+      "name": "Users",
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "size": 255,
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "size": 320,
+          "required": true
+        },
+        {
+          "key": "age",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 150
+        }
+      ],
+      "indexes": [
+        {
+          "key": "email_idx",
+          "type": "unique",
+          "attributes": ["email"]
+        }
+      ]
+    }
+  ],
+  "buckets": [
+    {
+      "id": "avatars",
+      "name": "User Avatars",
+      "maximumFileSize": 5242880,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "gif"]
+    }
+  ]
+}
+```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file:
+
+```bash
+# Flow API Key (for EsClient)
+EVERYDAY_API_KEY=es-your-api-key-here
+
+# Database API Configuration (for EsDbClient)
+EVERYDAY_PROJECT_ID=your-project-id-here
+EVERYDAY_ENDPOINT=https://provider.everydayseries.ai/v1
+
+# Optional: Default slug
+EVERYDAY_SLUG=your-default-slug
+```
+
+### Getting API Keys
+
+1. **Flow API Key**: Log in to [EverydaySeries](https://app.everydayseries.ai) and navigate to your account settings
+2. **Database Credentials**: Get your project ID and API key from your Appwrite/EverydaySeries provider dashboard
+
+## Examples
+
+### Example 1: Email Flow with Error Handling
+
+```typescript
+import { EsClient } from '@antelligent-app/everyday-cli';
+
+const client = new EsClient({
+  apiKey: process.env.EVERYDAY_API_KEY!,
+  slug: 'email-automation'
+});
+
+async function sendEmail(to: string, subject: string, body: string) {
+  const result = await client.run('email-flow-id', {
+    email: to,
+    subject: subject,
+    content: body
+  });
+
+  if (!result.success) {
+    throw new Error(`Email failed: ${result.error}`);
+  }
+
+  const outputs = client.getNodesDataByType(result.nodes, 'text_output');
+  return outputs;
+}
+```
+
+### Example 2: User Management
+
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli';
+
+const db = new EsDbClient({
+  projectId: process.env.EVERYDAY_PROJECT_ID!,
+  apiKey: process.env.EVERYDAY_API_KEY!
+});
+
+async function createUser(email: string, name: string, age: number) {
+  // Create user record
+  const user = await db.addRecord('main_db', 'users', {
+    email,
+    name,
+    age,
+    isActive: true,
+    createdAt: new Date().toISOString()
+  });
+
+  // Create associated account
+  const account = await db.registerAccount(email, 'temp-password', name);
+
+  return { user, account };
+}
+
+async function getActiveUsers() {
+  return await db.fetchRecords('main_db', 'users', {
+    rules: [
+      { key: 'isActive', condition: 'equals', match: true }
+    ],
+    sortBy: [{ key: 'name', order: 'ascending' }]
+  });
+}
+```
+
+### Example 3: File Upload with Metadata
+
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli';
+import * as fs from 'fs';
+
+const db = new EsDbClient({
+  projectId: process.env.EVERYDAY_PROJECT_ID!,
+  apiKey: process.env.EVERYDAY_API_KEY!
+});
+
+async function uploadUserAvatar(userId: string, filePath: string) {
+  // Read file
+  const fileBuffer = fs.readFileSync(filePath);
+  const blob = new Blob([fileBuffer]);
+
+  // Upload to storage
+  const asset = await db.storeAsset('avatars', blob);
+
+  // Save metadata to database
+  await db.modifyRecord('main_db', 'users', userId, {
+    avatarId: asset.uid,
+    avatarUrl: db.getAssetRetrievalUrl('avatars', asset.uid)
+  });
+
+  return asset;
+}
+```
+
 ## Supported Node Types
 
 The package includes TypeScript definitions for 48 node types with full autocomplete support:
@@ -222,79 +644,29 @@ The package includes TypeScript definitions for 48 node types with full autocomp
 
 ## TypeScript Types
 
+All types are fully documented with JSDoc comments:
+
 ```typescript
-interface EsClientConfig {
-  apiKey: string;
-  slug: string;
-  baseUrl?: string;
-}
+import type {
+  // Client configs
+  EsClientConfig,
+  EsDbClientConfig,
 
-interface FlowValue {
-  [key: string]: string;
-}
+  // Flow types
+  FlowNode,
+  FlowValue,
+  RunFlowResult,
+  NodeType,
 
-type NodeType =
-  | 'text_output'
-  | 'md_output'
-  | 'multi_text_input'
-  | 'img_output'
-  | 'prompt_ai'
-  | 'image_to_text'
-  | 'text_to_image'
-  | 'ghost_post'
-  | 'tool_ai'
-  | 'webhook_output'
-  | 'timer'
-  | 'cron'
-  | 'delay'
-  | 'concat'
-  | 'api_call'
-  | 'super_node'
-  | 'airtable'
-  | 'email_output'
-  | 'okr_output'
-  | 'note'
-  | 'read_pdf'
-  | 'python_run'
-  | 'integration_output'
-  | 'validation'
-  | 'sql'
-  | 'sql_output'
-  | 'writer_output'
-  | 'writer_create'
-  | 'csv'
-  | 'selection'
-  | 'replicate_ai'
-  | 'video_output'
-  | 'audio_output'
-  | 'html_output'
-  | 'markdown'
-  | 'pass_on'
-  | 'language_detection'
-  | 'entity_recognition'
-  | 'key_phrase_extraction'
-  | 'sentiment_analysis'
-  | 'pii_entity_recognition'
-  | 'json_splitter'
-  | 'series_symbol'
-  | 'github'
-  | 'gmail'
-  | 'notion'
-  | 'slack'
-  | 'jira';
-
-interface FlowNode {
-  type: NodeType;
-  data: any;
-  [key: string]: any;
-}
-
-interface RunFlowResult {
-  success: boolean;
-  nodes: FlowNode[];        // Full node objects
-  data?: FlowNode['data'][]; // Just the data from each node
-  error?: string;
-}
+  // Database types
+  EsRecord,
+  EsRecordSet,
+  EsAccount,
+  EsAccountSet,
+  EsAsset,
+  EsAssetSet,
+  EsQueryConfig
+} from '@antelligent-app/everyday-cli';
 ```
 
 ## Development
@@ -306,12 +678,6 @@ npm install
 # Build the project
 npm run build
 
-# Run in development mode
-npm run dev
-
-# Run CLI in development mode
-npm run dev:cli -- --help
-
 # Run tests
 npm test
 
@@ -322,33 +688,55 @@ npm run lint
 npm run format
 ```
 
-## Publishing to GitHub
+### Project Structure
 
-1. Build the project:
-   ```bash
-   npm run build
-   ```
+```
+everyday-cli/
+├── src/
+│   ├── client.ts         # EsClient (flow execution)
+│   ├── dbClient.ts       # EsDbClient (database operations)
+│   ├── cli.ts            # CLI entry point
+│   ├── types.ts          # TypeScript type definitions
+│   └── schema/
+│       ├── cli.ts        # Schema CLI commands
+│       ├── manager.ts    # Schema sync manager
+│       ├── parser.ts     # Schema file parser
+│       ├── validator.ts  # Schema validator
+│       └── types.ts      # Schema type definitions
+├── dist/                 # Built JavaScript files
+├── test/                 # Test files
+└── examples/             # Example usage
+```
 
-2. Commit and push your changes:
-   ```bash
-   git add .
-   git commit -m "Release v1.0.0"
-   git push origin main
-   ```
+## Publishing
 
-3. Create a release tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+This package is published to npm. To install for GitHub:
 
-4. Users can now install from GitHub:
-   ```bash
-   npm install antelligent-app/everyday-cli
-   ```
+```bash
+# Install from GitHub
+npm install github:antelligent-app/everyday-cli
+
+# Install from npm
+npm install @antelligent-app/everyday-cli
+```
+
+## Contributing
+
+This is a proprietary package. For issues or feature requests, please contact the maintainers.
 
 ## License
 
 Copyright (c) 2026 Antelligent. All rights reserved.
 
 This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use is strictly prohibited.
+
+## Support
+
+For support, please visit:
+- Documentation: [EverydaySeries Docs](https://app.everydayseries.ai/docs)
+- Issues: [GitHub Issues](https://github.com/antelligent-app/everyday-cli/issues)
+- Email: support@antelligent.app
+
+---
+
+**Built with ❤️ by Antelligent**
