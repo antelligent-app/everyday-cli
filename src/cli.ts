@@ -6,14 +6,35 @@ import type { NodeType } from './types';
 async function main() {
   const args = process.argv.slice(2);
 
+  // Check if this is a schema command
+  if (args[0] === 'schema') {
+    // Delegate to schema CLI
+    // Remove 'schema' from argv before passing to schema CLI
+    const schemaArgs = [process.argv[0], 'everyday-cli schema', ...args.slice(1)];
+    const { program } = await import('./schema/cli');
+    program.parse(schemaArgs);
+    return;
+  }
+
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(`
 EverydaySeries CLI
 
 Usage:
   everyday-cli <flow-id> [options]
+  everyday-cli schema <command> [options]
 
-Options:
+Flow Commands:
+  everyday-cli <flow-id>         Execute a flow
+
+Schema Commands:
+  schema init                    Initialize a new schema.json
+  schema validate                Validate schema.json
+  schema push                    Push schema to remote server
+  schema pull                    Pull schema from remote server
+  schema info                    Show schema information
+
+Flow Options:
   --api-key, -k <key>     API key for authentication (required)
   --value, -v <json>      JSON value to pass to the flow (default: {})
   --slug, -s <slug>       Slug for the flow execution
@@ -21,8 +42,14 @@ Options:
   --help, -h              Show this help message
 
 Examples:
+  # Execute a flow
   everyday-cli _0wgVv2QELuPy3R17-ctn -k es-xxx -v '{"q":"software"}'
   everyday-cli flowId -k es-xxx -n text_output
+
+  # Schema management
+  everyday-cli schema init
+  everyday-cli schema push --api-key xxx --project-id yyy
+  everyday-cli schema pull --database-id main_db
     `);
     process.exit(0);
   }

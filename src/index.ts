@@ -1,4 +1,5 @@
 export { EsClient } from './client';
+export { EsDbClient } from './dbClient';
 export type {
   EsClientConfig,
   FlowNode,
@@ -9,5 +10,13 @@ export type {
   MultiValueTypes,
   ModelInputType,
   SourceTarget,
-  NodeType
+  NodeType,
+  EsDbClientConfig,
+  EsRecord,
+  EsRecordSet,
+  EsAccount,
+  EsAccountSet,
+  EsAsset,
+  EsAssetSet,
+  EsQueryConfig
 } from './types';
