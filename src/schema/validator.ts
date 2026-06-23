@@ -267,19 +267,38 @@ function validateAttribute(
     }
 
     if (attr.type === 'integer' || attr.type === 'float') {
-      if (attr.min !== undefined && typeof attr.min !== 'number') {
-        errors.push({
-          path: `${path}.min`,
-          message: 'min must be a number',
-          code: 'INVALID_MIN'
-        });
+      // Validate min value
+      if (attr.min !== undefined) {
+        if (typeof attr.min !== 'number') {
+          errors.push({
+            path: `${path}.min`,
+            message: 'min must be a number',
+            code: 'INVALID_MIN'
+          });
+        } else if (attr.type === 'integer' && !Number.isSafeInteger(attr.min)) {
+          errors.push({
+            path: `${path}.min`,
+            message: `min value ${attr.min} exceeds JavaScript safe integer range (-9007199254740991 to 9007199254740991). Remove min/max or use safe values.`,
+            code: 'UNSAFE_INTEGER_MIN'
+          });
+        }
       }
-      if (attr.max !== undefined && typeof attr.max !== 'number') {
-        errors.push({
-          path: `${path}.max`,
-          message: 'max must be a number',
-          code: 'INVALID_MAX'
-        });
+
+      // Validate max value
+      if (attr.max !== undefined) {
+        if (typeof attr.max !== 'number') {
+          errors.push({
+            path: `${path}.max`,
+            message: 'max must be a number',
+            code: 'INVALID_MAX'
+          });
+        } else if (attr.type === 'integer' && !Number.isSafeInteger(attr.max)) {
+          errors.push({
+            path: `${path}.max`,
+            message: `max value ${attr.max} exceeds JavaScript safe integer range (-9007199254740991 to 9007199254740991). Remove min/max or use safe values.`,
+            code: 'UNSAFE_INTEGER_MAX'
+          });
+        }
       }
     }
 
