@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-06-23
+
+### Fixed
+- **Schema Pull**: Fixed issue where `schema pull` would generate invalid integer min/max values
+- Integer attributes with bounds outside JavaScript's safe integer range (±9,007,199,254,740,991) are now automatically handled
+- The `mapAttributeFromAppwrite` method now detects and omits unsafe min/max values with warnings
+- Enhanced schema validator to catch unsafe integer bounds before pushing to Appwrite
+- Prevents corruption of 64-bit integer bounds from Appwrite during JSON serialization
+
+### Added
+- `SCHEMA_FIX.md` - Comprehensive troubleshooting guide for integer min/max issues
+- Console warnings when unsafe integer values are detected during schema pull
+- New validation error codes: `UNSAFE_INTEGER_MIN`, `UNSAFE_INTEGER_MAX`
+
+### Changed
+- Schema pull now automatically sanitizes integer min/max values to prevent push failures
+- Validator provides clearer error messages with specific problematic values
+
 ## [1.1.0] - 2026-06-23
 
 ### Added
@@ -75,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment variable support for API keys
 - Command-line interface
 
+[1.1.1]: https://github.com/antelligent-app/everyday-cli/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/antelligent-app/everyday-cli/compare/v1.0.2...v1.1.0
 [1.0.1]: https://github.com/antelligent-app/everyday-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/antelligent-app/everyday-cli/releases/tag/v1.0.0
