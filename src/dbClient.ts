@@ -1,4 +1,4 @@
-import { Client, Databases, Users, ID, Query, Storage } from 'node-appwrite';
+import { Client, Databases, Users, Teams, ID, Query, Storage } from 'node-appwrite';
 import type {
   EsDbClientConfig,
   EsRecord,
@@ -7,7 +7,9 @@ import type {
   EsAccountSet,
   EsQueryConfig,
   EsAsset,
-  EsAssetSet
+  EsAssetSet,
+  EsMembership,
+  EsMembershipSet
 } from './types';
 
 const DEFAULT_PROVIDER_URL = 'https://provider.everydayseries.ai/v1';
@@ -18,6 +20,7 @@ export class EsDbClient {
   private client: Client;
   private databases: Databases;
   private users: Users;
+  private teams: Teams;
   private storage: Storage;
 
   constructor(config: EsDbClientConfig) {
@@ -34,6 +37,7 @@ export class EsDbClient {
 
     this.databases = new Databases(this.client);
     this.users = new Users(this.client);
+    this.teams = new Teams(this.client);
     this.storage = new Storage(this.client);
   }
 
@@ -290,6 +294,37 @@ export class EsDbClient {
       };
     } catch (error) {
       throw new Error(`Failed to fetch accounts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== TEAM OPERATIONS ====================
+
+  /**
+   * Fetch all memberships for a team
+   * @param teamId - Team identifier
+   * @param maxResults - Maximum number of results
+   */
+  async fetchTeamMemberships(teamId: string, maxResults?: number): Promise<EsMembershipSet> {
+    try {
+      const queries: string[] = [];
+      if (maxResults) queries.push(Query.limit(maxResults));
+
+      const response = await this.teams.listMemberships({ teamId, queries });
+      return {
+        count: response.total,
+        items: response.memberships.map((m): EsMembership => ({
+          uid: m.$id,
+          userId: m.userId,
+          userName: m.userName,
+          userEmail: m.userEmail,
+          teamId: m.teamId,
+          teamName: m.teamName,
+          roles: m.roles,
+          createdAt: m.$createdAt,
+        })),
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch team memberships: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

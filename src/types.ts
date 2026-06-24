@@ -269,6 +269,22 @@ export interface EsAccountSet {
   items: EsAccount[];
 }
 
+export interface EsMembership {
+  uid: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  teamId: string;
+  teamName: string;
+  roles: string[];
+  createdAt: string;
+}
+
+export interface EsMembershipSet {
+  count: number;
+  items: EsMembership[];
+}
+
 export interface EsAsset {
   uid: string;
   containerId: string;
