@@ -270,11 +270,12 @@ export class EsDbClient {
    * @param maxResults - Maximum number of results
    * @param skipCount - Number of results to skip
    */
-  async fetchAccounts(maxResults?: number, skipCount?: number): Promise<EsAccountSet> {
+  async fetchAccounts(maxResults?: number, skipCount?: number, cursorAfter?: string): Promise<EsAccountSet> {
     try {
       const queries = [];
       if (maxResults) queries.push(Query.limit(maxResults));
       if (skipCount) queries.push(Query.offset(skipCount));
+      if (cursorAfter) queries.push(Query.cursorAfter(cursorAfter));
 
       const response = await this.users.list(queries);
       return {
