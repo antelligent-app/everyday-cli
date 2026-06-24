@@ -256,6 +256,7 @@ export interface EsAccount {
   uid: string;
   emailAddress: string;
   displayName?: string;
+  phone?: string;
   isActive: boolean;
   emailConfirmed: boolean;
   phoneConfirmed: boolean;

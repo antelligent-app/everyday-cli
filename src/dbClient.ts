@@ -230,7 +230,7 @@ export class EsDbClient {
    */
   async modifyAccount(
     accountId: string,
-    changes: { emailAddress?: string; displayName?: string; credential?: string }
+    changes: { emailAddress?: string; displayName?: string; credential?: string; status?: boolean; phone?: string }
   ): Promise<EsAccount> {
     try {
       let user;
@@ -242,6 +242,12 @@ export class EsDbClient {
       }
       if (changes.credential) {
         user = await this.users.updatePassword(accountId, changes.credential);
+      }
+      if (typeof changes.status === 'boolean') {
+        user = await this.users.updateStatus({ userId: accountId, status: changes.status });
+      }
+      if (changes.phone) {
+        user = await this.users.updatePhone({ userId: accountId, number: changes.phone });
       }
 
       // Get fresh account data
@@ -399,6 +405,7 @@ export class EsDbClient {
       uid: user.$id,
       emailAddress: user.email,
       displayName: user.name,
+      phone: user.phone,
       isActive: user.status,
       emailConfirmed: user.emailVerification,
       phoneConfirmed: user.phoneVerification,
