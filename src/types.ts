@@ -256,6 +256,7 @@ export interface EsAccount {
   uid: string;
   emailAddress: string;
   displayName?: string;
+  phone?: string;
   isActive: boolean;
   emailConfirmed: boolean;
   phoneConfirmed: boolean;
@@ -266,6 +267,22 @@ export interface EsAccount {
 export interface EsAccountSet {
   count: number;
   items: EsAccount[];
+}
+
+export interface EsMembership {
+  uid: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  teamId: string;
+  teamName: string;
+  roles: string[];
+  createdAt: string;
+}
+
+export interface EsMembershipSet {
+  count: number;
+  items: EsMembership[];
 }
 
 export interface EsAsset {

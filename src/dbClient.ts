@@ -1,5 +1,4 @@
-import { Client, Databases, Users, Query, Storage } from 'node-appwrite';
-import { EsID, type EsPermissionString, type EsQueryString } from './helpers';
+import { Client, Databases, Users, Teams, ID, Query, Storage } from 'node-appwrite';
 import type {
   EsDbClientConfig,
   EsRecord,
@@ -8,7 +7,9 @@ import type {
   EsAccountSet,
   EsQueryConfig,
   EsAsset,
-  EsAssetSet
+  EsAssetSet,
+  EsMembership,
+  EsMembershipSet
 } from './types';
 
 const DEFAULT_PROVIDER_URL = 'https://provider.everydayseries.ai/v1';
@@ -19,6 +20,7 @@ export class EsDbClient {
   private client: Client;
   private databases: Databases;
   private users: Users;
+  private teams: Teams;
   private storage: Storage;
 
   constructor(config: EsDbClientConfig) {
@@ -35,6 +37,7 @@ export class EsDbClient {
 
     this.databases = new Databases(this.client);
     this.users = new Users(this.client);
+    this.teams = new Teams(this.client);
     this.storage = new Storage(this.client);
   }
 
@@ -264,7 +267,7 @@ export class EsDbClient {
    */
   async modifyAccount(
     accountId: string,
-    changes: { emailAddress?: string; displayName?: string; credential?: string }
+    changes: { emailAddress?: string; displayName?: string; credential?: string; status?: boolean; phone?: string }
   ): Promise<EsAccount> {
     try {
       let user;
@@ -276,6 +279,12 @@ export class EsDbClient {
       }
       if (changes.credential) {
         user = await this.users.updatePassword(accountId, changes.credential);
+      }
+      if (typeof changes.status === 'boolean') {
+        user = await this.users.updateStatus({ userId: accountId, status: changes.status });
+      }
+      if (changes.phone) {
+        user = await this.users.updatePhone({ userId: accountId, number: changes.phone });
       }
 
       // Get fresh account data
@@ -304,11 +313,12 @@ export class EsDbClient {
    * @param maxResults - Maximum number of results
    * @param skipCount - Number of results to skip
    */
-  async fetchAccounts(maxResults?: number, skipCount?: number): Promise<EsAccountSet> {
+  async fetchAccounts(maxResults?: number, skipCount?: number, cursorAfter?: string): Promise<EsAccountSet> {
     try {
       const queries = [];
       if (maxResults) queries.push(Query.limit(maxResults));
       if (skipCount) queries.push(Query.offset(skipCount));
+      if (cursorAfter) queries.push(Query.cursorAfter(cursorAfter));
 
       const response = await this.users.list(queries);
       return {
@@ -317,6 +327,37 @@ export class EsDbClient {
       };
     } catch (error) {
       throw new Error(`Failed to fetch accounts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== TEAM OPERATIONS ====================
+
+  /**
+   * Fetch all memberships for a team
+   * @param teamId - Team identifier
+   * @param maxResults - Maximum number of results
+   */
+  async fetchTeamMemberships(teamId: string, maxResults?: number): Promise<EsMembershipSet> {
+    try {
+      const queries: string[] = [];
+      if (maxResults) queries.push(Query.limit(maxResults));
+
+      const response = await this.teams.listMemberships({ teamId, queries });
+      return {
+        count: response.total,
+        items: response.memberships.map((m): EsMembership => ({
+          uid: m.$id,
+          userId: m.userId,
+          userName: m.userName,
+          userEmail: m.userEmail,
+          teamId: m.teamId,
+          teamName: m.teamName,
+          roles: m.roles,
+          createdAt: m.$createdAt,
+        })),
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch team memberships: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -432,6 +473,7 @@ export class EsDbClient {
       uid: user.$id,
       emailAddress: user.email,
       displayName: user.name,
+      phone: user.phone,
       isActive: user.status,
       emailConfirmed: user.emailVerification,
       phoneConfirmed: user.phoneVerification,
