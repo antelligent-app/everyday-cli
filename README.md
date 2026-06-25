@@ -439,18 +439,48 @@ const textData = client.getNodesDataByType(result.nodes, 'text_output');
 
 ### EsDbClient API
 
+The `EsDbClient` class provides database operations for both server and client environments.
+
+**Available in:**
+- **Server** (`@antelligent-app/everyday-cli/server`) - Full admin access with API key
+- **Client** (`@antelligent-app/everyday-cli/client`) - User-scoped access with session auth
+
+**Additional client-only methods:**
+- [Authentication](#authentication-client-side-only) - `login()`, `logout()`, `signup()`, OAuth, etc.
+- [Team Operations](#team-operations-client-side-only) - `createTeam()`, `listTeams()`, team management
+
+---
+
 #### Constructor
 
+**Server-Side:**
 ```typescript
-new EsDbClient(config: EsDbClientConfig)
+import { EsDbClient } from '@antelligent-app/everyday-cli/server';
+
+const db = new EsDbClient({
+  projectId: process.env.APPWRITE_PROJECT_ID!,
+  apiKey: process.env.APPWRITE_API_KEY!,  // Required for admin operations
+  endpoint: 'https://provider.everydayseries.ai/v1'  // Optional
+});
+```
+
+**Client-Side:**
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!,
+  // No apiKey - uses session authentication
+  endpoint: 'https://provider.everydayseries.ai/v1'  // Optional
+});
 ```
 
 **Config:**
-- `projectId` (required) - Your project ID
-- `apiKey` (required) - Your API key
+- `projectId` (required) - Your Appwrite project ID
+- `apiKey` (required for server, not available in client) - API key for admin operations
 - `endpoint` (optional) - API endpoint (default: `https://provider.everydayseries.ai/v1`)
 
-#### Record Operations
+#### Record Operations (Available in Both Server & Client)
 
 ##### `addRecord(storeId, tableId, payload, recordId?, permissions?)`
 
@@ -646,11 +676,15 @@ EsRole.label('admin')
 ]
 ```
 
-#### Account Operations
+#### Account Operations (Server-Side Only)
+
+Account operations are admin-level methods only available on the server-side with API key authentication.
+
+**For client-side user authentication**, see [Authentication (Client-Side Only)](#authentication-client-side-only).
 
 ##### `registerAccount(emailAddress, credential, displayName?)`
 
-Create a new user account.
+Create a new user account (admin operation).
 
 ```typescript
 const account = await db.registerAccount('user@example.com', 'password123', 'John Doe');
@@ -691,7 +725,7 @@ List all accounts with pagination.
 const accounts = await db.fetchAccounts(10, 0);
 ```
 
-#### Asset Storage Operations
+#### Asset Storage Operations (Available in Both Server & Client)
 
 ##### `storeAsset(containerId, resource, assetId?)`
 
@@ -739,6 +773,185 @@ List assets in a container.
 
 ```typescript
 const assets = await db.fetchAssets('bucket_id', 10, 0);
+```
+
+#### Authentication (Client-Side Only)
+
+Authentication methods are only available in the client-side package (`@antelligent-app/everyday-cli/client`) and use session-based authentication.
+
+##### `login(email, password)`
+
+Login with email and password, creates a session.
+
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+});
+
+const account = await db.login('user@example.com', 'password123');
+console.log('Logged in:', account.displayName);
+```
+
+##### `loginWithProvider(provider, successUrl?, failureUrl?)`
+
+Login with OAuth provider (Google, GitHub, Apple, Microsoft, Facebook, Twitter).
+
+```typescript
+// Redirects to OAuth provider
+await db.loginWithProvider('google',
+  'https://myapp.com/auth/success',
+  'https://myapp.com/auth/error'
+);
+```
+
+**Supported providers:** `'google'`, `'github'`, `'apple'`, `'microsoft'`, `'facebook'`, `'twitter'`
+
+##### `logout()`
+
+Logout current user and delete session.
+
+```typescript
+await db.logout();
+```
+
+##### `getCurrentUser()`
+
+Get currently logged-in user or null if not authenticated.
+
+```typescript
+const user = await db.getCurrentUser();
+if (user) {
+  console.log('Logged in as:', user.displayName);
+} else {
+  console.log('Not logged in');
+}
+```
+
+##### `signup(email, password, name?)`
+
+Create a new user account.
+
+```typescript
+const account = await db.signup(
+  'newuser@example.com',
+  'securePassword123',
+  'John Doe'
+);
+```
+
+##### `updateName(name)`
+
+Update current user's display name.
+
+```typescript
+await db.updateName('New Display Name');
+```
+
+##### `updateEmail(email, password)`
+
+Update current user's email (requires password confirmation).
+
+```typescript
+await db.updateEmail('newemail@example.com', 'currentPassword');
+```
+
+##### `updatePassword(newPassword, oldPassword)`
+
+Change current user's password.
+
+```typescript
+await db.updatePassword('newSecurePassword', 'oldPassword');
+```
+
+##### `sendPasswordRecovery(email, resetUrl?)`
+
+Send password recovery email.
+
+```typescript
+await db.sendPasswordRecovery(
+  'user@example.com',
+  'https://myapp.com/reset-password'
+);
+```
+
+##### `completePasswordRecovery(userId, secret, password)`
+
+Complete password recovery with secret from email.
+
+```typescript
+await db.completePasswordRecovery(userId, secret, 'newPassword123');
+```
+
+##### `sendEmailVerification(verifyUrl?)`
+
+Send email verification to current user.
+
+```typescript
+await db.sendEmailVerification('https://myapp.com/verify-email');
+```
+
+##### `completeEmailVerification(userId, secret)`
+
+Complete email verification with secret from email.
+
+```typescript
+await db.completeEmailVerification(userId, secret);
+```
+
+**Complete Authentication Example:**
+
+```typescript
+'use client';
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+import { useState } from 'react';
+
+export function AuthComponent() {
+  const [user, setUser] = useState(null);
+
+  const db = new EsDbClient({
+    projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+  });
+
+  async function handleLogin(email: string, password: string) {
+    try {
+      const account = await db.login(email, password);
+      setUser(account);
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  }
+
+  async function handleLogout() {
+    await db.logout();
+    setUser(null);
+  }
+
+  async function handleGoogleLogin() {
+    await db.loginWithProvider('google');
+  }
+
+  return (
+    <div>
+      {user ? (
+        <div>
+          <p>Welcome, {user.displayName}!</p>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
+      ) : (
+        <div>
+          <button onClick={() => handleLogin('user@example.com', 'password')}>
+            Login
+          </button>
+          <button onClick={handleGoogleLogin}>
+            Login with Google
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 ```
 
 #### Team Operations (Client-Side Only)
