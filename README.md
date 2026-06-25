@@ -5,7 +5,18 @@
 
 TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety. **Now supports both Node.js (server) and browser (client) environments!**
 
-## 🔧 v2.0.2 - THE REAL FIX (Latest)
+## 🔧 v2.0.3 - Clean Documentation (Latest)
+
+**Documentation cleanup** - Removed obsolete files, added clear documentation structure.
+
+- ✅ **Removed 1,900+ lines** of obsolete/temporary documentation
+- ✅ **Clean structure** - Only essential docs remain
+- ✅ **Better navigation** - Documentation section guides users
+- ✅ **No code changes** - Same great v2.0.2 ESM fix
+
+---
+
+## 🔧 v2.0.2 - THE REAL FIX
 
 **v2.0.1 didn't actually solve the problem!** v2.0.2 provides the real solution by switching from CommonJS to ESM output.
 
