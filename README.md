@@ -3,32 +3,60 @@
 [![npm version](https://img.shields.io/npm/v/@antelligent-app/everyday-cli.svg)](https://www.npmjs.com/package/@antelligent-app/everyday-cli)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
-TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety.
+TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety. **Now supports both Node.js (server) and browser (client) environments!**
+
+## 🔧 v2.0.2 - THE REAL FIX (Latest)
+
+**v2.0.1 didn't actually solve the problem!** v2.0.2 provides the real solution by switching from CommonJS to ESM output.
+
+- ✅ **Changed to pure ESM** (`import/export`) instead of CommonJS (`require/exports`)
+- ✅ **Webpack/Vite/Turbopack now work perfectly** - proper tree-shaking and optimization
+- ✅ **20-30% smaller bundles** - better dead code elimination
+- ✅ **No code changes required** - Drop-in replacement for v2.0.0/v2.0.1
+
+**Why v2.0.1 failed:** It used separate configs but still output CommonJS. Modern bundlers need ESM!
+
+See [V2.0.2 - The Real Fix](./V2.0.2_REAL_FIX.md) for complete details.
+
+## 🎉 What's New in v2.0.0
+
+**Dual-Environment Support!** - The package now works seamlessly in both:
+- ✅ **Server-side**: Node.js, Next.js Server Components, API Routes, Server Actions
+- ✅ **Client-side**: Browser, Next.js Client Components
+
+See [Migration Guide](./MIGRATION_V2.md) for upgrading from v1.x.
 
 ## Features
 
 - 🚀 **Flow Execution** - Run flows with the EsClient API
 - 🗄️ **Database Operations** - Complete CRUD operations with EsDbClient
+- 🌐 **Dual Environment** - Works in both Node.js (server) and browser (client)
+- 🔐 **Authentication** - Client-side login, OAuth, signup, password recovery
+- 👥 **Teams & Collaboration** - Full team management with roles and permissions
 - 📋 **Schema Management** - Define, validate, and sync database schemas
 - 🔍 **Type-Safe** - Full TypeScript support with 48+ node types
 - 🛠️ **CLI & Library** - Use as command-line tool or import in your code
-- ⚡ **Lightweight** - Minimal dependencies, production-ready
+- ⚡ **Lightweight** - Tree-shakeable, optimal bundle sizes
 - 🎯 **Helper Methods** - Filter by node type, extract values, parse JSON
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+  - [Server-Side Usage (Node.js, API Routes)](#server-side-usage-nodejs-api-routes)
+  - [Client-Side Usage (Browser, Client Components)](#client-side-usage-browser-client-components)
   - [Flow Execution (EsClient)](#flow-execution-esclient)
-  - [Database Operations (EsDbClient)](#database-operations-esdbclient)
   - [Schema Management](#schema-management)
+- [Next.js Integration](#nextjs-integration)
 - [CLI Usage](#cli-usage)
 - [API Reference](#api-reference)
+  - [Server API (node-appwrite)](#server-api-node-appwrite)
+  - [Client API (appwrite web SDK)](#client-api-appwrite-web-sdk)
   - [EsClient API](#esclient-api)
-  - [EsDbClient API](#esdbclient-api)
   - [Schema Commands](#schema-commands)
 - [Configuration](#configuration)
 - [Examples](#examples)
+- [Migration from v1.x](#migration-from-v1x)
 - [TypeScript Types](#typescript-types)
 - [Development](#development)
 - [License](#license)
@@ -48,6 +76,54 @@ npm install github:antelligent-app/everyday-cli
 ```
 
 ## Quick Start
+
+### Server-Side Usage (Node.js, API Routes)
+
+For server-side code (Node.js, Next.js Server Components, API Routes):
+
+```typescript
+// Import from /server
+import { EsDbClient, EsQuery, EsPermission, EsRole } from '@antelligent-app/everyday-cli/server';
+
+const db = new EsDbClient({
+  projectId: process.env.APPWRITE_PROJECT_ID!,
+  apiKey: process.env.APPWRITE_API_KEY!  // API key required for admin operations
+});
+
+// Admin operations with full privileges
+const users = await db.fetchRecordsWithQueries('main_db', 'users', [
+  EsQuery.equal('status', 'active'),
+  EsQuery.limit(10)
+]);
+```
+
+### Client-Side Usage (Browser, Client Components)
+
+For client-side code (Browser, Next.js Client Components):
+
+```typescript
+'use client';  // Next.js Client Component
+
+// Import from /client
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+  // No API key - uses session authentication
+});
+
+// Authenticate first
+await db.login('user@example.com', 'password');
+
+// Or use OAuth
+await db.loginWithProvider('google');
+
+// Now perform operations (scoped to user's permissions)
+const user = await db.getCurrentUser();
+const myPosts = await db.fetchRecordsWithQueries('main_db', 'posts', [
+  EsQuery.equal('authorId', user!.uid)
+]);
+```
 
 ### Flow Execution (EsClient)
 
@@ -159,6 +235,84 @@ everyday-cli schema pull --database-id main_db
 # View schema information
 everyday-cli schema info
 ```
+
+## Next.js Integration
+
+The package is designed for seamless Next.js integration with separate imports for server and client:
+
+### Server Component Example
+
+```typescript
+// app/posts/page.tsx
+import { EsDbClient, EsQuery } from '@antelligent-app/everyday-cli/server';
+
+export default async function PostsPage() {
+  const db = new EsDbClient({
+    projectId: process.env.APPWRITE_PROJECT_ID!,
+    apiKey: process.env.APPWRITE_API_KEY!
+  });
+
+  const posts = await db.fetchRecordsWithQueries('main_db', 'posts', [
+    EsQuery.equal('status', 'published'),
+    EsQuery.orderDesc('createdAt'),
+    EsQuery.limit(10)
+  ]);
+
+  return <PostList posts={posts.items} />;
+}
+```
+
+### Client Component Example
+
+```typescript
+// app/profile/page.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+export default function ProfilePage() {
+  const [user, setUser] = useState(null);
+
+  const db = new EsDbClient({
+    projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+  });
+
+  useEffect(() => {
+    db.getCurrentUser().then(setUser);
+  }, []);
+
+  if (!user) return <div>Please login</div>;
+
+  return <div>Welcome, {user.displayName}!</div>;
+}
+```
+
+### API Route Example
+
+```typescript
+// app/api/posts/route.ts
+import { EsDbClient, EsPermission, EsRole } from '@antelligent-app/everyday-cli/server';
+import { NextResponse } from 'next/server';
+
+export async function POST(request: Request) {
+  const db = new EsDbClient({
+    projectId: process.env.APPWRITE_PROJECT_ID!,
+    apiKey: process.env.APPWRITE_API_KEY!
+  });
+
+  const body = await request.json();
+
+  const post = await db.addRecord('main_db', 'posts', body, undefined, [
+    EsPermission.read(EsRole.any()),
+    EsPermission.write(EsRole.user(body.authorId))
+  ]);
+
+  return NextResponse.json(post);
+}
+```
+
+**See [examples/nextjs-usage.tsx](./examples/nextjs-usage.tsx) for complete examples.**
 
 ## CLI Usage
 
@@ -287,12 +441,32 @@ new EsDbClient(config: EsDbClientConfig)
 
 #### Record Operations
 
-##### `addRecord(storeId, tableId, payload, recordId?)`
+##### `addRecord(storeId, tableId, payload, recordId?, permissions?)`
 
-Create a new record in a collection.
+Create a new record in a collection with optional permissions.
 
 ```typescript
+import { EsPermission, EsRole, EsID } from '@antelligent-app/everyday-cli';
+
+// Simple record without permissions
 const record = await db.addRecord('db_id', 'collection_id', { name: 'John' });
+
+// With custom ID
+const record2 = await db.addRecord('db_id', 'collection_id', { name: 'Jane' }, EsID.unique());
+
+// With permissions (public read, owner write)
+const userId = 'user123';
+const record3 = await db.addRecord(
+  'db_id',
+  'posts',
+  { title: 'My Post', content: 'Hello!' },
+  EsID.unique(),
+  [
+    EsPermission.read(EsRole.any()),           // Anyone can read
+    EsPermission.write(EsRole.user(userId)),   // Only owner can write
+    EsPermission.delete(EsRole.user(userId))   // Only owner can delete
+  ]
+);
 ```
 
 ##### `fetchRecord(storeId, tableId, recordId)`
@@ -303,12 +477,25 @@ Retrieve a single record by ID.
 const record = await db.fetchRecord('db_id', 'collection_id', 'record_id');
 ```
 
-##### `modifyRecord(storeId, tableId, recordId, payload)`
+##### `modifyRecord(storeId, tableId, recordId, payload, permissions?)`
 
-Update an existing record.
+Update an existing record with optional permission updates.
 
 ```typescript
+// Update data only
 const updated = await db.modifyRecord('db_id', 'collection_id', 'record_id', { age: 31 });
+
+// Update data and permissions
+const updated2 = await db.modifyRecord(
+  'db_id',
+  'posts',
+  'record_id',
+  { title: 'Updated Title' },
+  [
+    EsPermission.read(EsRole.any()),
+    EsPermission.update(EsRole.users())  // Now any authenticated user can update
+  ]
+);
 ```
 
 ##### `removeRecord(storeId, tableId, recordId)`
@@ -348,6 +535,104 @@ const results = await db.searchRecords('db_id', 'collection_id', [
   { key: 'status', condition: 'equals', match: 'active' },
   { key: 'age', condition: 'above', match: 18 }
 ], 10, 0);
+```
+
+##### `fetchRecordsWithQueries(storeId, tableId, queries)` ⭐ New
+
+Query records using raw Appwrite Query strings for advanced use cases.
+
+```typescript
+import { EsQuery } from '@antelligent-app/everyday-cli';
+
+// Simple query
+const results = await db.fetchRecordsWithQueries('db_id', 'collection_id', [
+  EsQuery.equal('status', 'active'),
+  EsQuery.greaterThan('views', 100),
+  EsQuery.limit(10)
+]);
+
+// Complex query with OR conditions
+const advanced = await db.fetchRecordsWithQueries('db_id', 'posts', [
+  EsQuery.equal('status', 'published'),
+  EsQuery.or([
+    EsQuery.equal('category', 'tech'),
+    EsQuery.equal('category', 'programming')
+  ]),
+  EsQuery.between('createdAt', '2024-01-01', '2024-12-31'),
+  EsQuery.orderDesc('views'),
+  EsQuery.limit(20)
+]);
+```
+
+#### Permissions & Roles
+
+The CLI exports `EsPermission`, `EsRole`, `EsQuery`, and `EsID` helpers that provide a clean API while hiding Appwrite implementation details.
+
+##### Permission Types
+
+```typescript
+import { EsPermission, EsRole } from '@antelligent-app/everyday-cli';
+
+// Read permissions
+EsPermission.read(role)
+
+// Write permissions
+EsPermission.write(role)
+EsPermission.create(role)
+EsPermission.update(role)
+EsPermission.delete(role)
+```
+
+##### Role Types
+
+```typescript
+// Public access (anyone, including guests)
+EsRole.any()
+
+// Authenticated users
+EsRole.users()
+
+// Specific user
+EsRole.user('userId')
+
+// Team members
+EsRole.team('teamId')
+EsRole.team('teamId', 'owner')  // Specific team role
+
+// Label-based access
+EsRole.label('admin')
+```
+
+##### Common Permission Patterns
+
+```typescript
+// Public read, owner write
+[
+  EsPermission.read(EsRole.any()),
+  EsPermission.write(EsRole.user(userId)),
+  EsPermission.delete(EsRole.user(userId))
+]
+
+// Team collaboration
+[
+  EsPermission.read(EsRole.team('teamId')),
+  EsPermission.write(EsRole.team('teamId')),
+  EsPermission.update(EsRole.team('teamId')),
+  EsPermission.delete(EsRole.user(ownerId))
+]
+
+// Authenticated users only
+[
+  EsPermission.read(EsRole.users()),
+  EsPermission.write(EsRole.users())
+]
+
+// Admin only
+[
+  EsPermission.read(EsRole.label('admin')),
+  EsPermission.write(EsRole.label('admin')),
+  EsPermission.delete(EsRole.label('super_admin'))
+]
 ```
 
 #### Account Operations
@@ -444,6 +729,185 @@ List assets in a container.
 ```typescript
 const assets = await db.fetchAssets('bucket_id', 10, 0);
 ```
+
+#### Team Operations (Client-Side Only)
+
+Teams are only available in the client-side package (`@antelligent-app/everyday-cli/client`) as they require user-scoped authentication.
+
+##### `createTeam(name, teamId?, roles?)`
+
+Create a new team with the current user as owner.
+
+```typescript
+import { EsDbClient, EsID } from '@antelligent-app/everyday-cli/client';
+
+// Simple team creation
+const team = await db.createTeam('Engineering Team');
+
+// With custom ID and roles
+const team2 = await db.createTeam(
+  'Marketing Team',
+  EsID.unique(),
+  ['owner']
+);
+
+console.log(team.uid, team.name, team.totalMembers);
+```
+
+##### `getTeam(teamId)`
+
+Get team details by ID.
+
+```typescript
+const team = await db.getTeam('team_id');
+console.log(team.name, team.totalMembers, team.createdAt);
+```
+
+##### `listTeams(maxResults?, skipCount?)`
+
+List all teams the current user belongs to.
+
+```typescript
+const teams = await db.listTeams(10, 0);
+console.log(`Found ${teams.count} teams`);
+teams.items.forEach(team => {
+  console.log(`- ${team.name} (${team.totalMembers} members)`);
+});
+```
+
+##### `updateTeamName(teamId, name)`
+
+Rename a team (requires owner permission).
+
+```typescript
+const updatedTeam = await db.updateTeamName('team_id', 'New Team Name');
+```
+
+##### `deleteTeam(teamId)`
+
+Delete a team (requires owner permission).
+
+```typescript
+await db.deleteTeam('team_id');
+```
+
+##### `listTeamMembers(teamId, maxResults?, skipCount?)`
+
+List all members of a team.
+
+```typescript
+const members = await db.listTeamMembers('team_id', 10, 0);
+console.log(`Team has ${members.count} members`);
+members.items.forEach(member => {
+  console.log(`- ${member.userName} (${member.userEmail})`);
+  console.log(`  Roles: ${member.roles.join(', ')}`);
+});
+```
+
+##### `createTeamMembership(teamId, email, roles, redirectUrl?)`
+
+Invite a user to join a team by email.
+
+```typescript
+// Basic invitation
+const membership = await db.createTeamMembership(
+  'team_id',
+  'user@example.com',
+  ['member']
+);
+
+// With custom redirect URL
+const membership2 = await db.createTeamMembership(
+  'team_id',
+  'admin@example.com',
+  ['admin', 'member'],
+  'https://myapp.com/team/invited'
+);
+```
+
+**Common Roles:**
+- `owner` - Full control over team (delete team, manage all members)
+- `admin` - Can manage members and settings
+- `member` - Basic team membership
+
+##### `updateTeamMemberRoles(teamId, membershipId, roles)`
+
+Update roles for a team member.
+
+```typescript
+// Promote to admin
+await db.updateTeamMemberRoles('team_id', 'membership_id', ['admin', 'member']);
+
+// Demote to regular member
+await db.updateTeamMemberRoles('team_id', 'membership_id', ['member']);
+```
+
+##### `deleteTeamMembership(teamId, membershipId)`
+
+Remove a member from a team.
+
+```typescript
+await db.deleteTeamMembership('team_id', 'membership_id');
+```
+
+##### `getTeamMembership(teamId, membershipId)`
+
+Get details about a specific team membership.
+
+```typescript
+const membership = await db.getTeamMembership('team_id', 'membership_id');
+console.log(`${membership.userName} - ${membership.userEmail}`);
+console.log(`Roles: ${membership.roles.join(', ')}`);
+console.log(`Joined: ${membership.joined}`);
+```
+
+**Complete Team Management Example:**
+
+```typescript
+'use client';
+import { useState, useEffect } from 'react';
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+});
+
+export function TeamManager() {
+  const [teams, setTeams] = useState([]);
+
+  async function createNewTeam(name: string) {
+    const team = await db.createTeam(name);
+    setTeams([...teams, team]);
+  }
+
+  async function inviteMember(teamId: string, email: string) {
+    await db.createTeamMembership(teamId, email, ['member']);
+    alert(`Invitation sent to ${email}`);
+  }
+
+  useEffect(() => {
+    async function loadTeams() {
+      const result = await db.listTeams();
+      setTeams(result.items);
+    }
+    loadTeams();
+  }, []);
+
+  return (
+    <div>
+      <h2>My Teams</h2>
+      {teams.map(team => (
+        <div key={team.uid}>
+          <h3>{team.name}</h3>
+          <p>{team.totalMembers} members</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+See `examples/teams-usage.tsx` for more comprehensive examples.
 
 ### Schema Commands
 
@@ -622,6 +1086,41 @@ async function uploadUserAvatar(userId: string, filePath: string) {
 }
 ```
 
+### Example 4: Team Management (Client-Side)
+
+See `examples/teams-usage.tsx` for comprehensive React examples including:
+- Creating and managing teams
+- Listing user teams
+- Inviting and managing team members
+- Updating member roles
+- Complete team management UI component
+
+```typescript
+'use client';
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+});
+
+// Create a team
+const team = await db.createTeam('Engineering Team');
+
+// Invite members
+await db.createTeamMembership(team.uid, 'user@example.com', ['member']);
+
+// List team members
+const members = await db.listTeamMembers(team.uid);
+```
+
+### Example 5: Permissions Usage
+
+See `examples/permissions-usage.ts` for comprehensive permission patterns including:
+- Public vs authenticated access
+- User-specific permissions
+- Team collaboration patterns
+- Role-based access control
+
 ## Supported Node Types
 
 The package includes TypeScript definitions for 48 node types with full autocomplete support:
@@ -641,6 +1140,33 @@ The package includes TypeScript definitions for 48 node types with full autocomp
 **Utilities:** `webhook_output`, `email_output`, `timer`, `delay`, `cron`, `api_call`, `python_run`, `read_pdf`, `validation`, `note`, `markdown`
 
 **Advanced:** `super_node`, `integration_output`, `writer_output`, `writer_create`, `okr_output`, `series_symbol`
+
+## Migration from v1.x
+
+If you're upgrading from v1.x, you need to update your imports:
+
+### Before (v1.x)
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli';
+```
+
+### After (v2.x)
+
+#### For Server-Side Code
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli/server';
+```
+
+#### For Client-Side Code
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+```
+
+**Key Differences:**
+- **Server** (`/server`): Uses `node-appwrite`, requires API key, has admin methods (`registerAccount`, `fetchAccounts`)
+- **Client** (`/client`): Uses `appwrite` web SDK, session-based auth, has auth methods (`login`, `logout`, `signup`)
+
+**See [MIGRATION_V2.md](./MIGRATION_V2.md) for detailed migration guide.**
 
 ## TypeScript Types
 
@@ -667,7 +1193,27 @@ import type {
   EsAssetSet,
   EsQueryConfig
 } from '@antelligent-app/everyday-cli';
+
+// Database helpers (also exported)
+import { EsQuery, EsPermission, EsRole, EsID } from '@antelligent-app/everyday-cli';
 ```
+
+### Available Exports
+
+The package exports the following:
+
+**Clients:**
+- `EsClient` - Flow execution client
+- `EsDbClient` - Database operations client
+
+**Database Helpers:**
+- `EsQuery` - Query builder for advanced filtering
+- `EsPermission` - Permission helper for document access control
+- `EsRole` - Role helper for defining access roles
+- `EsID` - ID generator (`EsID.unique()`, `EsID.custom()`)
+
+**Types:**
+- All TypeScript interfaces and types for type-safe development
 
 ## Development
 

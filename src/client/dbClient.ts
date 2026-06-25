@@ -1,0 +1,688 @@
+/**
+ * EsDbClient - Client Implementation
+ *
+ * Uses appwrite web SDK for browser-side database operations with session authentication
+ */
+
+import { Client, Databases, Account, Query, Storage, Teams } from 'appwrite';
+import { EsDbClientBase, DEFAULT_PROVIDER_URL } from '../shared/base';
+import { EsID, type EsPermissionString, type EsQueryString } from '../helpers';
+import type {
+  EsRecord,
+  EsRecordSet,
+  EsAccount,
+  EsAsset,
+  EsAssetSet,
+  EsQueryConfig,
+  EsTeam,
+  EsTeamSet,
+  EsTeamMember,
+  EsTeamMemberSet,
+  EsTeamMembership
+} from '../types';
+
+/**
+ * Client-side configuration (NO API key - uses session auth)
+ */
+export interface EsDbClientConfigBrowser {
+  endpoint?: string;
+  projectId: string;
+  // No apiKey - uses session authentication
+}
+
+/**
+ * OAuth provider types
+ */
+export type OAuthProvider = 'google' | 'github' | 'apple' | 'microsoft' | 'facebook' | 'twitter';
+
+/**
+ * Client-side EsDbClient implementation
+ * Provides user-scoped access using session authentication
+ */
+export class EsDbClient extends EsDbClientBase {
+  private client: Client;
+  private databases: Databases;
+  private account: Account;
+  private storage: Storage;
+  private teams: Teams;
+
+  constructor(config: EsDbClientConfigBrowser) {
+    super(config);
+
+    const endpoint = config.endpoint || DEFAULT_PROVIDER_URL;
+
+    this.client = new Client()
+      .setEndpoint(endpoint)
+      .setProject(config.projectId);
+    // No API key - uses session cookies
+
+    this.databases = new Databases(this.client);
+    this.account = new Account(this.client);
+    this.storage = new Storage(this.client);
+    this.teams = new Teams(this.client);
+  }
+
+  // ==================== AUTHENTICATION METHODS (Client Only) ====================
+
+  /**
+   * Login with email and password
+   * Creates a session for the user
+   */
+  async login(email: string, password: string): Promise<EsAccount> {
+    try {
+      await this.account.createEmailPasswordSession(email, password);
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to login: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Login with OAuth provider
+   * Redirects to provider's OAuth page
+   */
+  async loginWithProvider(
+    provider: OAuthProvider,
+    successUrl?: string,
+    failureUrl?: string
+  ): Promise<void> {
+    try {
+      const success = successUrl || (typeof window !== 'undefined' ? window.location.origin + '/auth/callback' : '');
+      const failure = failureUrl || (typeof window !== 'undefined' ? window.location.origin + '/auth/error' : '');
+
+      await this.account.createOAuth2Session(
+        provider as any,
+        success,
+        failure
+      );
+    } catch (error) {
+      throw new Error(`Failed to login with ${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Logout current user
+   * Deletes the current session
+   */
+  async logout(): Promise<boolean> {
+    try {
+      await this.account.deleteSession('current');
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to logout: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get current logged-in user
+   * Returns null if not logged in
+   */
+  async getCurrentUser(): Promise<EsAccount | null> {
+    try {
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Sign up a new user
+   * Creates account and automatically logs in
+   */
+  async signup(email: string, password: string, name?: string): Promise<EsAccount> {
+    try {
+      await this.account.create(EsID.unique(), email, password, name);
+      return await this.login(email, password);
+    } catch (error) {
+      throw new Error(`Failed to signup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update user name
+   */
+  async updateName(name: string): Promise<EsAccount> {
+    try {
+      await this.account.updateName(name);
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update name: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update user email
+   */
+  async updateEmail(email: string, password: string): Promise<EsAccount> {
+    try {
+      await this.account.updateEmail(email, password);
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update user password
+   */
+  async updatePassword(newPassword: string, oldPassword: string): Promise<EsAccount> {
+    try {
+      await this.account.updatePassword(newPassword, oldPassword);
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update password: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Send password recovery email
+   */
+  async sendPasswordRecovery(email: string, resetUrl?: string): Promise<boolean> {
+    try {
+      const url = resetUrl || (typeof window !== 'undefined' ? window.location.origin + '/auth/reset-password' : '');
+      await this.account.createRecovery(email, url);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to send recovery email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete password recovery with secret
+   */
+  async completePasswordRecovery(userId: string, secret: string, password: string): Promise<boolean> {
+    try {
+      await this.account.updateRecovery(userId, secret, password);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to complete password recovery: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Send email verification
+   */
+  async sendEmailVerification(verifyUrl?: string): Promise<boolean> {
+    try {
+      const url = verifyUrl || (typeof window !== 'undefined' ? window.location.origin + '/auth/verify-email' : '');
+      await this.account.createVerification(url);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to send verification email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete email verification with secret
+   */
+  async completeEmailVerification(userId: string, secret: string): Promise<boolean> {
+    try {
+      await this.account.updateVerification(userId, secret);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to complete email verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== RECORD OPERATIONS ====================
+
+  async addRecord(
+    storeId: string,
+    tableId: string,
+    payload: Record<string, any>,
+    recordId?: string,
+    permissions?: EsPermissionString[]
+  ): Promise<EsRecord> {
+    try {
+      const doc = await this.databases.createDocument(
+        storeId,
+        tableId,
+        recordId || EsID.unique(),
+        payload,
+        permissions
+      );
+      return this.mapRecord(doc);
+    } catch (error) {
+      throw new Error(`Failed to add record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async fetchRecord(
+    storeId: string,
+    tableId: string,
+    recordId: string
+  ): Promise<EsRecord> {
+    try {
+      const doc = await this.databases.getDocument(storeId, tableId, recordId);
+      return this.mapRecord(doc);
+    } catch (error) {
+      throw new Error(`Failed to fetch record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async modifyRecord(
+    storeId: string,
+    tableId: string,
+    recordId: string,
+    payload: Record<string, any>,
+    permissions?: EsPermissionString[]
+  ): Promise<EsRecord> {
+    try {
+      const doc = await this.databases.updateDocument(
+        storeId,
+        tableId,
+        recordId,
+        payload,
+        permissions
+      );
+      return this.mapRecord(doc);
+    } catch (error) {
+      throw new Error(`Failed to modify record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removeRecord(
+    storeId: string,
+    tableId: string,
+    recordId: string
+  ): Promise<boolean> {
+    try {
+      await this.databases.deleteDocument(storeId, tableId, recordId);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to remove record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async fetchRecords(
+    storeId: string,
+    tableId: string,
+    config?: EsQueryConfig
+  ): Promise<EsRecordSet> {
+    try {
+      const queries = this.buildQuerySet(config);
+      const response = await this.databases.listDocuments(
+        storeId,
+        tableId,
+        queries
+      );
+
+      return {
+        count: response.total,
+        items: response.documents.map(doc => this.mapRecord(doc))
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch records: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async fetchRecordsWithQueries(
+    storeId: string,
+    tableId: string,
+    queries: EsQueryString[]
+  ): Promise<EsRecordSet> {
+    try {
+      const response = await this.databases.listDocuments(
+        storeId,
+        tableId,
+        queries
+      );
+
+      return {
+        count: response.total,
+        items: response.documents.map(doc => this.mapRecord(doc))
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch records with queries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async searchRecords(
+    storeId: string,
+    tableId: string,
+    rules: { key: string; condition: string; match: any }[],
+    maxResults?: number,
+    skipCount?: number
+  ): Promise<EsRecordSet> {
+    try {
+      const queries = rules.map(r => this.buildFilterRule(r));
+
+      if (maxResults) queries.push(Query.limit(maxResults));
+      if (skipCount) queries.push(Query.offset(skipCount));
+
+      const response = await this.databases.listDocuments(
+        storeId,
+        tableId,
+        queries
+      );
+
+      return {
+        count: response.total,
+        items: response.documents.map(doc => this.mapRecord(doc))
+      };
+    } catch (error) {
+      throw new Error(`Failed to search records: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== ASSET STORAGE OPERATIONS ====================
+
+  async storeAsset(
+    containerId: string,
+    resource: File | Blob,
+    assetId?: string
+  ): Promise<EsAsset> {
+    try {
+      const uploadedFile = await this.storage.createFile(
+        containerId,
+        assetId || EsID.unique(),
+        resource as any
+      );
+      return this.mapAsset(uploadedFile);
+    } catch (error) {
+      throw new Error(`Failed to store asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async fetchAsset(containerId: string, assetId: string): Promise<EsAsset> {
+    try {
+      const file = await this.storage.getFile(containerId, assetId);
+      return this.mapAsset(file);
+    } catch (error) {
+      throw new Error(`Failed to fetch asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  getAssetRetrievalUrl(containerId: string, assetId: string): string {
+    return `${this.endpoint}/storage/buckets/${containerId}/files/${assetId}/download?project=${this.projectId}`;
+  }
+
+  getAssetPreviewUrl(containerId: string, assetId: string): string {
+    return `${this.endpoint}/storage/buckets/${containerId}/files/${assetId}/view?project=${this.projectId}`;
+  }
+
+  async removeAsset(containerId: string, assetId: string): Promise<boolean> {
+    try {
+      await this.storage.deleteFile(containerId, assetId);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to remove asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async fetchAssets(containerId: string, maxResults?: number, skipCount?: number): Promise<EsAssetSet> {
+    try {
+      const queries = [];
+      if (maxResults) queries.push(Query.limit(maxResults));
+      if (skipCount) queries.push(Query.offset(skipCount));
+
+      const response = await this.storage.listFiles(containerId, queries);
+      return {
+        count: response.total,
+        items: response.files.map(file => this.mapAsset(file))
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch assets: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== TEAM OPERATIONS (Client Only) ====================
+
+  /**
+   * Create a new team
+   * @param name - Team name
+   * @param teamId - Optional custom team ID
+   * @param roles - Optional roles for the team creator
+   */
+  async createTeam(name: string, teamId?: string, roles?: string[]): Promise<EsTeam> {
+    try {
+      const team = await this.teams.create(teamId || EsID.unique(), name, roles);
+      return this.mapTeam(team);
+    } catch (error) {
+      throw new Error(`Failed to create team: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get a team by ID
+   * @param teamId - Team identifier
+   */
+  async getTeam(teamId: string): Promise<EsTeam> {
+    try {
+      const team = await this.teams.get(teamId);
+      return this.mapTeam(team);
+    } catch (error) {
+      throw new Error(`Failed to get team: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * List all teams for the current user
+   * @param maxResults - Maximum number of results
+   * @param skipCount - Number of results to skip
+   */
+  async listTeams(maxResults?: number, skipCount?: number): Promise<EsTeamSet> {
+    try {
+      const queries = [];
+      if (maxResults) queries.push(Query.limit(maxResults));
+      if (skipCount) queries.push(Query.offset(skipCount));
+
+      const response = await this.teams.list(queries);
+      return {
+        count: response.total,
+        items: response.teams.map(team => this.mapTeam(team))
+      };
+    } catch (error) {
+      throw new Error(`Failed to list teams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update team name
+   * @param teamId - Team identifier
+   * @param name - New team name
+   */
+  async updateTeamName(teamId: string, name: string): Promise<EsTeam> {
+    try {
+      const team = await this.teams.updateName(teamId, name);
+      return this.mapTeam(team);
+    } catch (error) {
+      throw new Error(`Failed to update team name: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Delete a team
+   * @param teamId - Team identifier
+   */
+  async deleteTeam(teamId: string): Promise<boolean> {
+    try {
+      await this.teams.delete(teamId);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to delete team: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * List team members
+   * @param teamId - Team identifier
+   * @param maxResults - Maximum number of results
+   * @param skipCount - Number of results to skip
+   */
+  async listTeamMembers(teamId: string, maxResults?: number, skipCount?: number): Promise<EsTeamMemberSet> {
+    try {
+      const queries = [];
+      if (maxResults) queries.push(Query.limit(maxResults));
+      if (skipCount) queries.push(Query.offset(skipCount));
+
+      const response = await this.teams.listMemberships(teamId, queries);
+      return {
+        count: response.total,
+        items: response.memberships.map(membership => this.mapTeamMember(membership))
+      };
+    } catch (error) {
+      throw new Error(`Failed to list team members: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create team membership (invite user)
+   * @param teamId - Team identifier
+   * @param email - User email to invite
+   * @param roles - Roles to assign to the user
+   * @param redirectUrl - URL to redirect after accepting invite
+   */
+  async createTeamMembership(
+    teamId: string,
+    email: string,
+    roles: string[],
+    redirectUrl?: string
+  ): Promise<EsTeamMember> {
+    try {
+      const url = redirectUrl || (typeof window !== 'undefined' ? window.location.origin + '/teams' : '');
+      const membership = await this.teams.createMembership(teamId, roles, email, undefined, undefined, url);
+      return this.mapTeamMember(membership);
+    } catch (error) {
+      throw new Error(`Failed to create team membership: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update team member roles
+   * @param teamId - Team identifier
+   * @param membershipId - Membership identifier
+   * @param roles - New roles for the member
+   */
+  async updateTeamMemberRoles(teamId: string, membershipId: string, roles: string[]): Promise<EsTeamMember> {
+    try {
+      const membership = await this.teams.updateMembership(teamId, membershipId, roles);
+      return this.mapTeamMember(membership);
+    } catch (error) {
+      throw new Error(`Failed to update member roles: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Delete team membership (remove member)
+   * @param teamId - Team identifier
+   * @param membershipId - Membership identifier
+   */
+  async deleteTeamMembership(teamId: string, membershipId: string): Promise<boolean> {
+    try {
+      await this.teams.deleteMembership(teamId, membershipId);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to delete team membership: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get team membership status
+   * @param teamId - Team identifier
+   * @param membershipId - Membership identifier
+   */
+  async getTeamMembership(teamId: string, membershipId: string): Promise<EsTeamMember> {
+    try {
+      const membership = await this.teams.getMembership(teamId, membershipId);
+      return this.mapTeamMember(membership);
+    } catch (error) {
+      throw new Error(`Failed to get team membership: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== PRIVATE HELPER METHODS ====================
+
+  /**
+   * Map Appwrite team to EsTeam
+   */
+  private mapTeam(team: any): EsTeam {
+    return {
+      uid: team.$id,
+      name: team.name,
+      totalMembers: team.total || 0,
+      createdAt: team.$createdAt
+    };
+  }
+
+  /**
+   * Map Appwrite membership to EsTeamMember
+   */
+  private mapTeamMember(membership: any): EsTeamMember {
+    return {
+      uid: membership.$id,
+      teamId: membership.teamId,
+      teamName: membership.teamName || '',
+      userId: membership.userId,
+      userName: membership.userName,
+      userEmail: membership.userEmail,
+      roles: membership.roles || [],
+      joined: membership.joined
+    };
+  }
+
+  private buildQuerySet(config?: EsQueryConfig): string[] {
+    const queries: string[] = [];
+
+    if (!config) return queries;
+
+    if (config.maxResults) queries.push(Query.limit(config.maxResults));
+    if (config.skipCount) queries.push(Query.offset(config.skipCount));
+
+    if (config.sortBy) {
+      config.sortBy.forEach(sort => {
+        if (sort.order === 'descending') {
+          queries.push(Query.orderDesc(sort.key));
+        } else {
+          queries.push(Query.orderAsc(sort.key));
+        }
+      });
+    }
+
+    if (config.rules) {
+      config.rules.forEach(rule => {
+        queries.push(this.buildFilterRule(rule));
+      });
+    }
+
+    return queries;
+  }
+
+  private buildFilterRule(rule: { key: string; condition: string; match: any }): string {
+    const { key, condition, match } = rule;
+
+    switch (condition) {
+      case 'equals':
+        return Query.equal(key, match);
+      case 'notEquals':
+        return Query.notEqual(key, match);
+      case 'below':
+        return Query.lessThan(key, match);
+      case 'belowOrEquals':
+        return Query.lessThanEqual(key, match);
+      case 'above':
+        return Query.greaterThan(key, match);
+      case 'aboveOrEquals':
+        return Query.greaterThanEqual(key, match);
+      case 'contains':
+        return Query.search(key, match);
+      case 'isEmpty':
+        return Query.isNull(key);
+      case 'isNotEmpty':
+        return Query.isNotNull(key);
+      case 'inRange':
+        return Query.between(key, match[0], match[1]);
+      case 'beginsWith':
+        return Query.startsWith(key, match);
+      case 'endsWith':
+        return Query.endsWith(key, match);
+      default:
+        return Query.equal(key, match);
+    }
+  }
+}
