@@ -36,8 +36,11 @@
   "files": [
     "dist/**/*",
     "README.md",
-    "LICENSE",
-    "NEXTJS_DUAL_SUPPORT.md"
+    "CHANGELOG.md",
+    "MIGRATION_V2.md",
+    "V2.0.2_REAL_FIX.md",
+    "NEXTJS_QUICK_START.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "npm run build:clean && npm run build:server && npm run build:client",

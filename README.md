@@ -1276,6 +1276,22 @@ Copyright (c) 2026 Antelligent. All rights reserved.
 
 This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use is strictly prohibited.
 
+## Documentation
+
+### Essential Guides
+
+- **[README.md](./README.md)** - Complete API reference and usage guide (you are here)
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and release notes
+- **[V2.0.2_REAL_FIX.md](./V2.0.2_REAL_FIX.md)** - Understanding the v2.0.2 ESM fix
+- **[NEXTJS_QUICK_START.md](./NEXTJS_QUICK_START.md)** - Quick start for Next.js users
+- **[MIGRATION_V2.md](./MIGRATION_V2.md)** - Migrating from v1.x to v2.x
+
+### Examples
+
+- **[examples/nextjs-usage.tsx](./examples/nextjs-usage.tsx)** - Next.js integration examples
+- **[examples/teams-usage.tsx](./examples/teams-usage.tsx)** - Teams management examples
+- **[examples/permissions-usage.ts](./examples/permissions-usage.ts)** - Permissions patterns
+
 ## Support
 
 For support, please visit:
