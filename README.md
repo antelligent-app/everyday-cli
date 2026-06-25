@@ -5,7 +5,19 @@
 
 TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety. **Now supports both Node.js (server) and browser (client) environments!**
 
-## 🔧 v2.0.3 - Clean Documentation (Latest)
+## 📚 v2.0.4 - Complete API Documentation (Latest)
+
+**Documentation complete** - Added all 12 authentication methods + clarified server vs client APIs.
+
+- ✅ **12 authentication methods** fully documented with examples
+- ✅ **Clear API sections** - All labeled with server/client availability
+- ✅ **React examples** - Complete authentication component
+- ✅ **Cross-references** - Easy navigation between related sections
+- ✅ **No code changes** - Same great v2.0.2 ESM fix
+
+---
+
+## 🔧 v2.0.3 - Clean Documentation
 
 **Documentation cleanup** - Removed obsolete files, added clear documentation structure.
 

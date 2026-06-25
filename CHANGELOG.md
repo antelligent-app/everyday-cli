@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2026-06-25
+
+### 📚 Complete API Documentation
+
+This release adds comprehensive documentation for all client-side authentication methods and clarifies server vs client API availability.
+
+### Added
+
+- **Authentication Documentation (Client-Side)** - Complete documentation for 12 authentication methods:
+  - `login()`, `logout()`, `getCurrentUser()`, `signup()`
+  - OAuth with `loginWithProvider()` (Google, GitHub, Apple, Microsoft, Facebook, Twitter)
+  - Profile management: `updateName()`, `updateEmail()`, `updatePassword()`
+  - Password recovery: `sendPasswordRecovery()`, `completePasswordRecovery()`
+  - Email verification: `sendEmailVerification()`, `completeEmailVerification()`
+  - Complete React authentication component example
+
+### Changed
+
+- **README.md** - 220+ lines of new documentation
+  - Clarified EsDbClient API works in both server and client
+  - Separate constructor examples for server vs client
+  - Updated all section headers with availability labels
+  - Added cross-references between related sections
+
+### Documentation Structure
+
+All API sections now clearly labeled:
+- ✅ **Record Operations** - Available in Both Server & Client
+- ✅ **Asset Storage Operations** - Available in Both Server & Client
+- ✅ **Account Operations** - Server-Side Only (admin operations)
+- ✅ **Authentication** - Client-Side Only (user login/signup) [NEW]
+- ✅ **Team Operations** - Client-Side Only (user-scoped)
+
+**No code changes** - Documentation-only release.
+
+---
+
 ## [2.0.3] - 2026-06-25
 
 ### 📚 Documentation Cleanup
