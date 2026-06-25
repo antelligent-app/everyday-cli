@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["node"]
+  },
+  "include": [
+    "src/index.ts",
+    "src/client.ts",
+    "src/cli.ts",
+    "src/server/**/*",
+    "src/shared/**/*",
+    "src/helpers/**/*",
+    "src/types.ts"
+  ]
+}

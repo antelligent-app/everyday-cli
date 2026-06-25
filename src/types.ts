@@ -296,3 +296,41 @@ export interface EsQueryConfig {
     match: any;
   }>;
 }
+
+// Team Types
+export interface EsTeam {
+  uid: string;
+  name: string;
+  totalMembers: number;
+  createdAt: string;
+}
+
+export interface EsTeamSet {
+  count: number;
+  items: EsTeam[];
+}
+
+export interface EsTeamMember {
+  uid: string;
+  teamId: string;
+  teamName: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  roles: string[];
+  joined: string;
+}
+
+export interface EsTeamMemberSet {
+  count: number;
+  items: EsTeamMember[];
+}
+
+export interface EsTeamMembership {
+  uid: string;
+  userId: string;
+  teamId: string;
+  teamName: string;
+  roles: string[];
+  joined: string;
+}

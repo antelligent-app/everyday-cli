@@ -1,19 +1,49 @@
 {
   "name": "@antelligent-app/everyday-cli",
-  "version": "1.1.1",
-  "description": "TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas",
+  "version": "2.0.2",
+  "description": "TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas. Supports both Node.js (server) and browser (client) environments.",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "everyday-cli": "dist/cli.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "node": {
+        "import": "./dist/index.js",
+        "require": "./dist/index.js"
+      },
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "node": {
+        "import": "./dist/server/index.js",
+        "require": "./dist/server/index.js"
+      },
+      "default": "./dist/server/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "browser": "./dist/client/index.js",
+      "import": "./dist/client/index.js",
+      "require": "./dist/client/index.js",
+      "default": "./dist/client/index.js"
+    }
+  },
   "files": [
     "dist/**/*",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NEXTJS_DUAL_SUPPORT.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:clean && npm run build:server && npm run build:client",
+    "build:clean": "rm -rf dist",
+    "build:server": "tsc --project tsconfig.server.json",
+    "build:client": "tsc --project tsconfig.client.json",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "dev:cli": "ts-node src/cli.ts",
@@ -47,9 +77,9 @@
   },
   "homepage": "https://github.com/antelligent-app/everyday-cli#readme",
   "devDependencies": {
+    "@types/inquirer": "^8.2.10",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.3",
-    "@types/inquirer": "^8.2.10",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
     "eslint": "^9.39.4",
@@ -63,10 +93,11 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "node-appwrite": "^26.2.0",
+    "appwrite": "^26.0.0",
+    "chalk": "^4.1.2",
     "commander": "^12.0.0",
     "inquirer": "^8.2.6",
-    "chalk": "^4.1.2",
+    "node-appwrite": "^26.2.0",
     "ora": "^5.4.1"
   }
 }

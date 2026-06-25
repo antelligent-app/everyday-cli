@@ -1,31 +1,44 @@
+/**
+ * EsDbClient - Server Implementation
+ *
+ * Uses node-appwrite SDK for server-side database operations with API key authentication
+ */
+
 import { Client, Databases, Users, Query, Storage } from 'node-appwrite';
-import { EsID, type EsPermissionString, type EsQueryString } from './helpers';
+import { EsDbClientBase, DEFAULT_PROVIDER_URL } from '../shared/base';
+import { EsID, type EsPermissionString, type EsQueryString } from '../helpers';
 import type {
-  EsDbClientConfig,
   EsRecord,
   EsRecordSet,
   EsAccount,
   EsAccountSet,
-  EsQueryConfig,
   EsAsset,
-  EsAssetSet
-} from './types';
+  EsAssetSet,
+  EsQueryConfig
+} from '../types';
 
-const DEFAULT_PROVIDER_URL = 'https://provider.everydayseries.ai/v1';
+/**
+ * Server-side configuration (requires API key)
+ */
+export interface EsDbClientConfigServer {
+  endpoint?: string;
+  projectId: string;
+  apiKey: string;  // Required for admin operations
+}
 
-export class EsDbClient {
-  private endpoint: string;
-  private projectId: string;
+/**
+ * Server-side EsDbClient implementation
+ * Provides full admin access using API key authentication
+ */
+export class EsDbClient extends EsDbClientBase {
   private client: Client;
   private databases: Databases;
   private users: Users;
   private storage: Storage;
 
-  constructor(config: EsDbClientConfig) {
-    this.endpoint = config.endpoint || DEFAULT_PROVIDER_URL;
-    this.projectId = config.projectId;
+  constructor(config: EsDbClientConfigServer) {
+    super(config);
 
-    // Use endpoint as-is - Appwrite needs /v1 in the endpoint
     const endpoint = config.endpoint || DEFAULT_PROVIDER_URL;
 
     this.client = new Client()
@@ -40,14 +53,6 @@ export class EsDbClient {
 
   // ==================== RECORD OPERATIONS ====================
 
-  /**
-   * Add a new record to a data store
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param payload - Record data
-   * @param recordId - Optional custom record identifier
-   * @param permissions - Optional permissions array (e.g., [Permission.read(Role.any())])
-   */
   async addRecord(
     storeId: string,
     tableId: string,
@@ -69,12 +74,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Fetch a record by identifier
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param recordId - Record identifier
-   */
   async fetchRecord(
     storeId: string,
     tableId: string,
@@ -88,14 +87,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Modify an existing record
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param recordId - Record identifier
-   * @param payload - Updated data
-   * @param permissions - Optional permissions array to update (e.g., [Permission.read(Role.any())])
-   */
   async modifyRecord(
     storeId: string,
     tableId: string,
@@ -117,12 +108,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Remove a record permanently
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param recordId - Record identifier
-   */
   async removeRecord(
     storeId: string,
     tableId: string,
@@ -136,12 +121,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Retrieve records from a table with optional filtering
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param config - Query configuration (filters, limit, offset, sorting)
-   */
   async fetchRecords(
     storeId: string,
     tableId: string,
@@ -164,12 +143,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Retrieve records using raw Appwrite Query strings (advanced)
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param queries - Array of Appwrite Query strings (e.g., [Query.equal('status', 'active')])
-   */
   async fetchRecordsWithQueries(
     storeId: string,
     tableId: string,
@@ -191,14 +164,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Search records with custom filter rules
-   * @param storeId - Data store identifier
-   * @param tableId - Table identifier
-   * @param rules - Array of filter conditions
-   * @param maxResults - Maximum number of results
-   * @param skipCount - Number of results to skip
-   */
   async searchRecords(
     storeId: string,
     tableId: string,
@@ -227,10 +192,10 @@ export class EsDbClient {
     }
   }
 
-  // ==================== ACCOUNT OPERATIONS ====================
+  // ==================== ACCOUNT OPERATIONS (Admin Only) ====================
 
   /**
-   * Register a new account
+   * Register a new account (Admin operation)
    * @param emailAddress - Account email
    * @param credential - Account credential
    * @param displayName - Account display name
@@ -245,7 +210,7 @@ export class EsDbClient {
   }
 
   /**
-   * Retrieve an account by identifier
+   * Retrieve an account by identifier (Admin operation)
    * @param accountId - Account identifier
    */
   async fetchAccount(accountId: string): Promise<EsAccount> {
@@ -258,7 +223,7 @@ export class EsDbClient {
   }
 
   /**
-   * Modify an account
+   * Modify an account (Admin operation)
    * @param accountId - Account identifier
    * @param changes - Account changes (emailAddress, displayName, credential)
    */
@@ -287,7 +252,7 @@ export class EsDbClient {
   }
 
   /**
-   * Remove an account
+   * Remove an account (Admin operation)
    * @param accountId - Account identifier
    */
   async removeAccount(accountId: string): Promise<boolean> {
@@ -300,7 +265,7 @@ export class EsDbClient {
   }
 
   /**
-   * Retrieve all accounts
+   * Retrieve all accounts (Admin operation)
    * @param maxResults - Maximum number of results
    * @param skipCount - Number of results to skip
    */
@@ -322,12 +287,6 @@ export class EsDbClient {
 
   // ==================== ASSET STORAGE OPERATIONS ====================
 
-  /**
-   * Store an asset
-   * @param containerId - Storage container identifier
-   * @param resource - Asset to store (File or Blob)
-   * @param assetId - Optional custom asset identifier
-   */
   async storeAsset(
     containerId: string,
     resource: File | Blob,
@@ -345,11 +304,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Retrieve asset metadata
-   * @param containerId - Storage container identifier
-   * @param assetId - Asset identifier
-   */
   async fetchAsset(containerId: string, assetId: string): Promise<EsAsset> {
     try {
       const file = await this.storage.getFile(containerId, assetId);
@@ -359,29 +313,14 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Generate asset retrieval URL
-   * @param containerId - Storage container identifier
-   * @param assetId - Asset identifier
-   */
   getAssetRetrievalUrl(containerId: string, assetId: string): string {
     return `${this.endpoint}/storage/buckets/${containerId}/files/${assetId}/download?project=${this.projectId}`;
   }
 
-  /**
-   * Generate asset preview URL
-   * @param containerId - Storage container identifier
-   * @param assetId - Asset identifier
-   */
   getAssetPreviewUrl(containerId: string, assetId: string): string {
     return `${this.endpoint}/storage/buckets/${containerId}/files/${assetId}/view?project=${this.projectId}`;
   }
 
-  /**
-   * Remove an asset
-   * @param containerId - Storage container identifier
-   * @param assetId - Asset identifier
-   */
   async removeAsset(containerId: string, assetId: string): Promise<boolean> {
     try {
       await this.storage.deleteFile(containerId, assetId);
@@ -391,12 +330,6 @@ export class EsDbClient {
     }
   }
 
-  /**
-   * Retrieve assets in a container
-   * @param containerId - Storage container identifier
-   * @param maxResults - Maximum number of results
-   * @param skipCount - Number of results to skip
-   */
   async fetchAssets(containerId: string, maxResults?: number, skipCount?: number): Promise<EsAssetSet> {
     try {
       const queries = [];
@@ -413,44 +346,7 @@ export class EsDbClient {
     }
   }
 
-  // ==================== HELPER METHODS (PRIVATE) ====================
-
-  private mapRecord(doc: any): EsRecord {
-    return {
-      uid: doc.$id,
-      tableId: doc.$collectionId,
-      storeId: doc.$databaseId,
-      createdAt: doc.$createdAt,
-      modifiedAt: doc.$updatedAt,
-      accessRules: doc.$permissions,
-      payload: { ...doc }
-    };
-  }
-
-  private mapAccount(user: any): EsAccount {
-    return {
-      uid: user.$id,
-      emailAddress: user.email,
-      displayName: user.name,
-      isActive: user.status,
-      emailConfirmed: user.emailVerification,
-      phoneConfirmed: user.phoneVerification,
-      createdAt: user.$createdAt,
-      modifiedAt: user.$updatedAt
-    };
-  }
-
-  private mapAsset(file: any): EsAsset {
-    return {
-      uid: file.$id,
-      containerId: file.bucketId,
-      filename: file.name,
-      byteSize: file.sizeOriginal,
-      contentType: file.mimeType,
-      createdAt: file.$createdAt,
-      modifiedAt: file.$updatedAt
-    };
-  }
+  // ==================== PRIVATE HELPER METHODS ====================
 
   private buildQuerySet(config?: EsQueryConfig): string[] {
     const queries: string[] = [];
