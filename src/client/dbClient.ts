@@ -253,7 +253,7 @@ export class EsDbClient extends EsDbClientBase {
    */
   async completeMagicURLSession(userId: string, secret: string): Promise<EsAccount> {
     try {
-      await this.account.createSession(userId, secret);
+      await this.account.updateMagicURLSession(userId, secret);
       const user = await this.account.get();
       return this.mapAccount(user);
     } catch (error) {
