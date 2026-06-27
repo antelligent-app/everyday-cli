@@ -5,6 +5,92 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2026-06-27
+
+### 🚀 Server-Side Account Service
+
+This release adds comprehensive server-side Account service support with 27 new methods for session-based authentication and user operations.
+
+### Added
+
+- **Account Service (Server-Side)** - Complete session-based user operations
+  - Imported `Account` from `node-appwrite` alongside existing `Users` service
+  - Users service = Admin operations (API key)
+  - Account service = Session-based operations (JWT/session required)
+
+- **Session Management (8 methods)**
+  - `createEmailPasswordSession(email, password)` - Login with credentials
+  - `createAnonymousSession()` - Create anonymous session
+  - `createSessionFromToken(userId, secret)` - Complete token-based login
+  - `listCurrentSessions()` - List all user sessions
+  - `getCurrentSession(sessionId)` - Get specific session details
+  - `updateCurrentSession(sessionId)` - Extend session expiration
+  - `deleteCurrentSession(sessionId)` - Logout from specific device
+  - `deleteAllCurrentSessions()` - Logout from all devices
+
+- **Account Management (8 methods)**
+  - `getCurrentAccount()` - Get currently logged in user
+  - `createAccount(userId, email, password, name?)` - Signup (no session required)
+  - `updateCurrentEmail(email, password)` - Update email with password confirmation
+  - `updateCurrentName(name)` - Update display name
+  - `updateCurrentPassword(password, oldPassword?)` - Change password
+  - `updateCurrentPhone(phone, password)` - Update phone number
+  - `getCurrentAccountPreferences()` - Get current user's preferences
+  - `updateCurrentAccountPreferences(prefs)` - Update current user's preferences
+
+- **Token & Authentication (4 methods)**
+  - `createAccountMagicURLToken(userId, email, url?, phrase?)` - Magic URL with automatic email
+  - `createAccountEmailToken(userId, email, phrase?)` - Email token with automatic email
+  - `createAccountPhoneToken(userId, phone)` - Phone token with automatic SMS
+  - `createAccountJWT(duration?)` - Create JWT for current session
+
+- **Password Recovery (2 methods)**
+  - `createAccountRecovery(email, url)` - Initiate password reset (sends email)
+  - `updateAccountRecovery(userId, secret, password)` - Complete password reset
+
+- **Verification (4 methods)**
+  - `createAccountEmailVerification(url)` - Send email verification
+  - `updateAccountEmailVerification(userId, secret)` - Complete email verification
+  - `createAccountPhoneVerification()` - Send phone verification SMS
+  - `updateAccountPhoneVerification(userId, secret)` - Complete phone verification
+
+- **Generic Token Creator (1 method)**
+  - `createAuthToken(userId, length?, expire?)` - Create custom auth token (Users service)
+  - Does NOT send email - you must handle notification yourself
+  - For custom authentication flows where you control the notification system
+
+### Changed
+
+- **Server-Side Architecture**
+  - Now includes both `Users` and `Account` services
+  - Clear distinction: Users = admin ops, Account = session ops
+  - Account methods require active session (JWT or session ID)
+  - Set session via `client.setJWT(token)` or `client.setSession(id)`
+
+- **README.md** - Added 150+ lines of documentation
+  - New section: "Account Service Methods (Server-Side - Requires Session)"
+  - Complete API reference for all 27 Account methods
+  - Usage examples for session management
+  - Clear warnings about session requirements
+  - Token creation vs custom token creation explained
+
+### Implementation Details
+
+All Account service methods:
+- Require active user session (except `createAccount` for signup)
+- Use proper error handling with descriptive messages
+- Return mapped EsAccount types where applicable
+- Follow existing code patterns and conventions
+
+**Difference from Users service:**
+- Users service: Admin operations with API key, no session needed
+- Account service: User operations with session/JWT required
+- Both available on server-side for different use cases
+
+**Build Status**: ✅ All code compiles successfully with no TypeScript errors
+
+---
+
 ## [2.0.5] - 2026-06-27
 
 ### 🎉 Five Powerful New Features

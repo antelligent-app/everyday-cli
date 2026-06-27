@@ -4,7 +4,7 @@
  * Uses node-appwrite SDK for server-side database operations with API key authentication
  */
 
-import { Client, Databases, Users, Query, Storage } from 'node-appwrite';
+import { Client, Databases, Users, Query, Storage, Account } from 'node-appwrite';
 import { EsDbClientBase, DEFAULT_PROVIDER_URL } from '../shared/base';
 import { EsID, type EsPermissionString, type EsQueryString } from '../helpers';
 import type {
@@ -30,12 +30,16 @@ export interface EsDbClientConfigServer {
 /**
  * Server-side EsDbClient implementation
  * Provides full admin access using API key authentication
+ *
+ * Note: Account service methods require an active user session (JWT token).
+ * Use Users service for admin operations that don't require sessions.
  */
 export class EsDbClient extends EsDbClientBase {
   private client: Client;
   private databases: Databases;
   private users: Users;
   private storage: Storage;
+  private account: Account;
 
   constructor(config: EsDbClientConfigServer) {
     super(config);
@@ -50,6 +54,7 @@ export class EsDbClient extends EsDbClientBase {
     this.databases = new Databases(this.client);
     this.users = new Users(this.client);
     this.storage = new Storage(this.client);
+    this.account = new Account(this.client);
   }
 
   // ==================== RECORD OPERATIONS ====================
@@ -286,6 +291,47 @@ export class EsDbClient extends EsDbClientBase {
     }
   }
 
+  // ==================== TOKEN AUTHENTICATION (Admin operations) ====================
+
+  /**
+   * Create an authentication token for a user (Server-side admin operation)
+   *
+   * **IMPORTANT**: This method only creates a token - it does NOT send any email.
+   * You must manually send the userId and secret to the user (via email, SMS, etc.)
+   *
+   * Use case: Custom authentication flows, magic URL systems, passwordless login
+   *
+   * The client can then use `account.createSession(userId, secret)` to complete login.
+   *
+   * @param userId - User ID to create token for
+   * @param length - Token length in characters (default: 6)
+   * @param expire - Token expiration in seconds (default: 900 = 15 minutes)
+   * @returns Token object with userId and secret (you must send these to the user yourself)
+   *
+   * @example
+   * ```typescript
+   * // Server-side: Create token
+   * const { userId, secret } = await db.createAuthToken('user_123');
+   *
+   * // You must send these values to the user yourself:
+   * await sendEmail(userEmail, `Your login link: ${appUrl}/auth?userId=${userId}&secret=${secret}`);
+   *
+   * // Client-side: User clicks link and completes session
+   * await account.createSession(userId, secret);
+   * ```
+   */
+  async createAuthToken(userId: string, length?: number, expire?: number): Promise<{ userId: string; secret: string }> {
+    try {
+      const token = await this.users.createToken(userId, length, expire);
+      return {
+        userId: token.userId,
+        secret: token.secret
+      };
+    } catch (error) {
+      throw new Error(`Failed to create auth token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   // ==================== ACCOUNT PREFERENCES (Admin operations) ====================
 
   /**
@@ -375,6 +421,319 @@ export class EsDbClient extends EsDbClientBase {
       };
     } catch (error) {
       throw new Error(`Failed to fetch assets: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== ACCOUNT SERVICE METHODS (Requires Session) ====================
+  //
+  // IMPORTANT: These methods require an active user session (JWT token).
+  // Set the session using: client.setJWT(jwtToken)
+  // or client.setSession(sessionId)
+  //
+  // These are different from Users service methods which are admin-only.
+  // ====================================================================================
+
+  /**
+   * Get currently logged in user (requires session)
+   */
+  async getCurrentAccount(): Promise<EsAccount> {
+    try {
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to get current account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create new account (signup) - does not require session
+   */
+  async createAccount(userId: string, email: string, password: string, name?: string): Promise<EsAccount> {
+    try {
+      const user = await this.account.create(userId, email, password, name);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to create account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update current account email (requires session and password)
+   */
+  async updateCurrentEmail(email: string, password: string): Promise<EsAccount> {
+    try {
+      const user = await this.account.updateEmail(email, password);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update current account name (requires session)
+   */
+  async updateCurrentName(name: string): Promise<EsAccount> {
+    try {
+      const user = await this.account.updateName(name);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update name: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update current account password (requires session)
+   */
+  async updateCurrentPassword(password: string, oldPassword?: string): Promise<EsAccount> {
+    try {
+      const user = await this.account.updatePassword(password, oldPassword);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update password: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update current account phone (requires session and password)
+   */
+  async updateCurrentPhone(phone: string, password: string): Promise<EsAccount> {
+    try {
+      const user = await this.account.updatePhone(phone, password);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update phone: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get current account preferences (requires session)
+   */
+  async getCurrentAccountPreferences(): Promise<EsAccountPreferences> {
+    try {
+      const prefs = await this.account.getPrefs();
+      return prefs as EsAccountPreferences;
+    } catch (error) {
+      throw new Error(`Failed to get preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update current account preferences (requires session)
+   */
+  async updateCurrentAccountPreferences(prefs: EsAccountPreferences): Promise<EsAccount> {
+    try {
+      const user = await this.account.updatePrefs(prefs);
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to update preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== SESSION MANAGEMENT (Account Service) ====================
+
+  /**
+   * Create email/password session (login)
+   */
+  async createEmailPasswordSession(email: string, password: string): Promise<any> {
+    try {
+      return await this.account.createEmailPasswordSession(email, password);
+    } catch (error) {
+      throw new Error(`Failed to create session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create anonymous session
+   */
+  async createAnonymousSession(): Promise<any> {
+    try {
+      return await this.account.createAnonymousSession();
+    } catch (error) {
+      throw new Error(`Failed to create anonymous session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create session from token (Magic URL, Phone, Email Token)
+   */
+  async createSessionFromToken(userId: string, secret: string): Promise<any> {
+    try {
+      return await this.account.createSession(userId, secret);
+    } catch (error) {
+      throw new Error(`Failed to create session from token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * List all sessions for current user
+   */
+  async listCurrentSessions(): Promise<any> {
+    try {
+      return await this.account.listSessions();
+    } catch (error) {
+      throw new Error(`Failed to list sessions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get specific session
+   */
+  async getCurrentSession(sessionId: string): Promise<any> {
+    try {
+      return await this.account.getSession(sessionId);
+    } catch (error) {
+      throw new Error(`Failed to get session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update session (extend expiration)
+   */
+  async updateCurrentSession(sessionId: string): Promise<any> {
+    try {
+      return await this.account.updateSession(sessionId);
+    } catch (error) {
+      throw new Error(`Failed to update session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Delete specific session (logout from specific device)
+   */
+  async deleteCurrentSession(sessionId: string): Promise<boolean> {
+    try {
+      await this.account.deleteSession(sessionId);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to delete session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Delete all sessions (logout from all devices)
+   */
+  async deleteAllCurrentSessions(): Promise<boolean> {
+    try {
+      await this.account.deleteSessions();
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to delete all sessions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== TOKEN CREATION (Account Service) ====================
+
+  /**
+   * Create Magic URL token (sends email automatically)
+   */
+  async createAccountMagicURLToken(userId: string, email: string, url?: string, phrase?: boolean): Promise<any> {
+    try {
+      return await this.account.createMagicURLToken(userId, email, url, phrase);
+    } catch (error) {
+      throw new Error(`Failed to create magic URL token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create email token (sends email automatically)
+   */
+  async createAccountEmailToken(userId: string, email: string, phrase?: boolean): Promise<any> {
+    try {
+      return await this.account.createEmailToken(userId, email, phrase);
+    } catch (error) {
+      throw new Error(`Failed to create email token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create phone token (sends SMS automatically)
+   */
+  async createAccountPhoneToken(userId: string, phone: string): Promise<any> {
+    try {
+      return await this.account.createPhoneToken(userId, phone);
+    } catch (error) {
+      throw new Error(`Failed to create phone token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create JWT token for current session
+   */
+  async createAccountJWT(duration?: number): Promise<any> {
+    try {
+      return await this.account.createJWT(duration);
+    } catch (error) {
+      throw new Error(`Failed to create JWT: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== PASSWORD RECOVERY (Account Service) ====================
+
+  /**
+   * Create password recovery (sends email)
+   */
+  async createAccountRecovery(email: string, url: string): Promise<any> {
+    try {
+      return await this.account.createRecovery(email, url);
+    } catch (error) {
+      throw new Error(`Failed to create recovery: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete password recovery
+   */
+  async updateAccountRecovery(userId: string, secret: string, password: string): Promise<any> {
+    try {
+      return await this.account.updateRecovery(userId, secret, password);
+    } catch (error) {
+      throw new Error(`Failed to update recovery: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== VERIFICATION (Account Service) ====================
+
+  /**
+   * Create email verification (sends email)
+   */
+  async createAccountEmailVerification(url: string): Promise<any> {
+    try {
+      return await this.account.createEmailVerification(url);
+    } catch (error) {
+      throw new Error(`Failed to create email verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete email verification
+   */
+  async updateAccountEmailVerification(userId: string, secret: string): Promise<any> {
+    try {
+      return await this.account.updateEmailVerification(userId, secret);
+    } catch (error) {
+      throw new Error(`Failed to update email verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create phone verification (sends SMS)
+   */
+  async createAccountPhoneVerification(): Promise<any> {
+    try {
+      return await this.account.createPhoneVerification();
+    } catch (error) {
+      throw new Error(`Failed to create phone verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete phone verification
+   */
+  async updateAccountPhoneVerification(userId: string, secret: string): Promise<any> {
+    try {
+      return await this.account.updatePhoneVerification(userId, secret);
+    } catch (error) {
+      throw new Error(`Failed to update phone verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

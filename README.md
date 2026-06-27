@@ -5,7 +5,20 @@
 
 TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety. **Now supports both Node.js (server) and browser (client) environments!**
 
-## 🎉 v2.0.5 - Realtime, Preferences & Magic URL (Latest)
+## 🚀 v2.0.6 - Server-Side Account Service (Latest)
+
+**27 new server-side Account methods added!** Complete session-based authentication on the server.
+
+- ✅ **Account Service** - Full session-based user operations on server-side
+- ✅ **Session Management** - Create, list, update, delete sessions
+- ✅ **Account Management** - Get/update current user profile, preferences
+- ✅ **Token Authentication** - Magic URL, Email, Phone tokens with automatic sending
+- ✅ **Password Recovery** - Server-side password reset flows
+- ✅ **Verification** - Email and phone verification on server
+
+---
+
+## 🎉 v2.0.5 - Realtime, Preferences & Magic URL
 
 **5 powerful new features added!** All new features verified against Appwrite SDK v26.0.0.
 
@@ -749,6 +762,210 @@ List all accounts with pagination.
 
 ```typescript
 const accounts = await db.fetchAccounts(10, 0);
+```
+
+##### `createAuthToken(userId, length?, expire?)` ⭐ New
+
+Create an authentication token for custom auth flows (admin operation).
+
+**IMPORTANT:** This method only creates a token - it does NOT send any email. You must manually send the userId and secret to the user via your own email/SMS system.
+
+```typescript
+// Server-side: Create token
+const { userId, secret } = await db.createAuthToken('user_123', 6, 900);
+
+// You must send these to the user yourself:
+await yourEmailService.send({
+  to: 'user@example.com',
+  subject: 'Login to your account',
+  body: `Click here: https://yourapp.com/auth?userId=${userId}&secret=${secret}`
+});
+
+// Client-side: User clicks link, then:
+// await account.createSession(userId, secret);
+```
+
+**Parameters:**
+- `userId` - User ID to create token for
+- `length` - Token length in characters (default: 6)
+- `expire` - Token expiration in seconds (default: 900 = 15 minutes)
+
+**Returns:** `{ userId: string; secret: string }`
+
+**Use cases:**
+- Custom magic URL systems where you control email sending
+- SMS-based passwordless login
+- Custom authentication flows with your own notification system
+
+**Note:** For client-side magic URL with automatic email sending, use [`sendMagicURL()`](#sendmagicurl-email-loginurl--new) instead.
+
+##### `getAccountPreferences(accountId)` ⭐ New (Server-Side)
+
+Get account preferences for any user (admin operation).
+
+```typescript
+const prefs = await db.getAccountPreferences('user_123');
+console.log('User theme:', prefs.theme);
+```
+
+##### `updateAccountPreferences(accountId, prefs)` ⭐ New (Server-Side)
+
+Update account preferences for any user (admin operation).
+
+```typescript
+await db.updateAccountPreferences('user_123', {
+  theme: 'dark',
+  language: 'en'
+});
+```
+
+#### Account Service Methods (Server-Side - Requires Session) ⭐ New
+
+The Account service provides session-based user operations. These methods require an active user session (JWT or session ID).
+
+**Set session before using these methods:**
+```typescript
+import { EsDbClient } from '@antelligent-app/everyday-cli/server';
+
+const db = new EsDbClient({
+  projectId: process.env.APPWRITE_PROJECT_ID!,
+  apiKey: process.env.APPWRITE_API_KEY!
+});
+
+// Set JWT token from user session
+db.client.setJWT(jwtToken);
+// OR set session ID
+// db.client.setSession(sessionId);
+```
+
+##### Session Management
+
+**`createEmailPasswordSession(email, password)`**
+```typescript
+const session = await db.createEmailPasswordSession('user@example.com', 'password123');
+```
+
+**`createAnonymousSession()`**
+```typescript
+const session = await db.createAnonymousSession();
+```
+
+**`createSessionFromToken(userId, secret)`** - Complete Magic URL/Email/Phone token login
+```typescript
+const session = await db.createSessionFromToken(userId, secret);
+```
+
+**`listCurrentSessions()`**
+```typescript
+const sessions = await db.listCurrentSessions();
+```
+
+**`deleteCurrentSession(sessionId)`** - Logout from specific device
+```typescript
+await db.deleteCurrentSession('session_123');
+```
+
+**`deleteAllCurrentSessions()`** - Logout from all devices
+```typescript
+await db.deleteAllCurrentSessions();
+```
+
+##### Account Management
+
+**`getCurrentAccount()`** - Get currently logged in user
+```typescript
+const account = await db.getCurrentAccount();
+```
+
+**`createAccount(userId, email, password, name?)`** - Signup (no session required)
+```typescript
+const account = await db.createAccount(EsID.unique(), 'user@example.com', 'password123', 'John Doe');
+```
+
+**`updateCurrentEmail(email, password)`**
+```typescript
+const account = await db.updateCurrentEmail('newemail@example.com', 'currentPassword');
+```
+
+**`updateCurrentName(name)`**
+```typescript
+const account = await db.updateCurrentName('New Name');
+```
+
+**`updateCurrentPassword(password, oldPassword?)`**
+```typescript
+const account = await db.updateCurrentPassword('newPassword123', 'oldPassword123');
+```
+
+**`updateCurrentPhone(phone, password)`**
+```typescript
+const account = await db.updateCurrentPhone('+1234567890', 'password123');
+```
+
+**`getCurrentAccountPreferences()`**
+```typescript
+const prefs = await db.getCurrentAccountPreferences();
+```
+
+**`updateCurrentAccountPreferences(prefs)`**
+```typescript
+const account = await db.updateCurrentAccountPreferences({ theme: 'dark' });
+```
+
+##### Token & Authentication
+
+**`createAccountMagicURLToken(userId, email, url?, phrase?)`** - Sends email automatically
+```typescript
+const token = await db.createAccountMagicURLToken(EsID.unique(), 'user@example.com', 'https://app.com/auth');
+```
+
+**`createAccountEmailToken(userId, email, phrase?)`** - Sends email automatically
+```typescript
+const token = await db.createAccountEmailToken(EsID.unique(), 'user@example.com');
+```
+
+**`createAccountPhoneToken(userId, phone)`** - Sends SMS automatically
+```typescript
+const token = await db.createAccountPhoneToken(EsID.unique(), '+1234567890');
+```
+
+**`createAccountJWT(duration?)`** - Create JWT for current session
+```typescript
+const jwt = await db.createAccountJWT(3600); // 1 hour
+```
+
+##### Password Recovery
+
+**`createAccountRecovery(email, url)`** - Initiate password reset (sends email)
+```typescript
+const token = await db.createAccountRecovery('user@example.com', 'https://app.com/reset');
+```
+
+**`updateAccountRecovery(userId, secret, password)`** - Complete password reset
+```typescript
+const token = await db.updateAccountRecovery(userId, secret, 'newPassword123');
+```
+
+##### Verification
+
+**`createAccountEmailVerification(url)`** - Send verification email
+```typescript
+const token = await db.createAccountEmailVerification('https://app.com/verify');
+```
+
+**`updateAccountEmailVerification(userId, secret)`** - Complete email verification
+```typescript
+const token = await db.updateAccountEmailVerification(userId, secret);
+```
+
+**`createAccountPhoneVerification()`** - Send verification SMS
+```typescript
+const token = await db.createAccountPhoneVerification();
+```
+
+**`updateAccountPhoneVerification(userId, secret)`** - Complete phone verification
+```typescript
+const token = await db.updateAccountPhoneVerification(userId, secret);
 ```
 
 #### Asset Storage Operations (Available in Both Server & Client)
