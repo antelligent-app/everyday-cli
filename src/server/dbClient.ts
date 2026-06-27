@@ -14,7 +14,8 @@ import type {
   EsAccountSet,
   EsAsset,
   EsAssetSet,
-  EsQueryConfig
+  EsQueryConfig,
+  EsAccountPreferences
 } from '../types';
 
 /**
@@ -282,6 +283,37 @@ export class EsDbClient extends EsDbClientBase {
       };
     } catch (error) {
       throw new Error(`Failed to fetch accounts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== ACCOUNT PREFERENCES (Admin operations) ====================
+
+  /**
+   * Get account preferences for a specific user (Admin operation)
+   * @param accountId - Account identifier
+   * @returns User's custom preferences object
+   */
+  async getAccountPreferences(accountId: string): Promise<EsAccountPreferences> {
+    try {
+      const prefs = await this.users.getPrefs(accountId);
+      return prefs as EsAccountPreferences;
+    } catch (error) {
+      throw new Error(`Failed to get account preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update account preferences for a specific user (Admin operation)
+   * Merges with existing preferences
+   * @param accountId - Account identifier
+   * @param prefs - Preferences object to update
+   */
+  async updateAccountPreferences(accountId: string, prefs: EsAccountPreferences): Promise<EsAccountPreferences> {
+    try {
+      const updatedPrefs = await this.users.updatePrefs(accountId, prefs);
+      return updatedPrefs as EsAccountPreferences;
+    } catch (error) {
+      throw new Error(`Failed to update account preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

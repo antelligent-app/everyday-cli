@@ -32,7 +32,12 @@ export type {
   EsTeamSet,
   EsTeamMember,
   EsTeamMemberSet,
-  EsTeamMembership
+  EsTeamMembership,
+  EsAccountPreferences,
+  EsTeamPreferences,
+  RealtimeCallback,
+  RealtimeResponseEvent,
+  UnsubscribeFunction
 } from '../types';
 
 // Note: EsClient (flow execution) not exported here - only works server-side

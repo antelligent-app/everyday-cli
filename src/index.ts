@@ -39,6 +39,7 @@ export type {
   EsAsset,
   EsAssetSet,
   EsQueryConfig,
+  EsAccountPreferences,
   NodeType,
   FlowNode,
   FlowResponse,

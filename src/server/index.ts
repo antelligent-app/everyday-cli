@@ -28,7 +28,8 @@ export type {
   EsAccountSet,
   EsAsset,
   EsAssetSet,
-  EsQueryConfig
+  EsQueryConfig,
+  EsAccountPreferences
 } from '../types';
 
 // Also export the EsClient for flow execution (if needed)

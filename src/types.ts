@@ -351,3 +351,28 @@ export interface EsTeamMembership {
   roles: string[];
   joined: string;
 }
+
+// ==================== PREFERENCES ====================
+
+export interface EsAccountPreferences {
+  [key: string]: any;
+}
+
+export interface EsTeamPreferences {
+  [key: string]: any;
+}
+
+// ==================== REALTIME ====================
+
+export type RealtimeChannel = 'documents' | 'collections' | 'databases' | 'files' | 'buckets' | 'teams' | 'memberships' | 'executions' | 'functions';
+
+export type RealtimeResponseEvent<T = any> = {
+  events: string[];
+  channels: string[];
+  timestamp: number;
+  payload: T;
+};
+
+export type RealtimeCallback<T = any> = (response: RealtimeResponseEvent<T>) => void;
+
+export type UnsubscribeFunction = () => void;

@@ -18,7 +18,11 @@ import type {
   EsTeamSet,
   EsTeamMember,
   EsTeamMemberSet,
-  EsTeamMembership
+  EsTeamMembership,
+  EsAccountPreferences,
+  EsTeamPreferences,
+  RealtimeCallback,
+  UnsubscribeFunction
 } from '../types';
 
 /**
@@ -227,6 +231,170 @@ export class EsDbClient extends EsDbClientBase {
     } catch (error) {
       throw new Error(`Failed to complete email verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Send magic URL token for passwordless authentication
+   * The user will receive an email with a link to login
+   */
+  async sendMagicURL(email: string, loginUrl?: string): Promise<boolean> {
+    try {
+      const url = loginUrl || (typeof window !== 'undefined' ? window.location.origin + '/auth/magic-url' : '');
+      await this.account.createMagicURLToken(EsID.unique(), email, url);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to send magic URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete magic URL session with userId and secret from the email link
+   * This logs the user in without a password
+   */
+  async completeMagicURLSession(userId: string, secret: string): Promise<EsAccount> {
+    try {
+      await this.account.createSession(userId, secret);
+      const user = await this.account.get();
+      return this.mapAccount(user);
+    } catch (error) {
+      throw new Error(`Failed to complete magic URL session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== ACCOUNT PREFERENCES ====================
+
+  /**
+   * Get account preferences
+   * Returns user's custom preferences object
+   */
+  async getAccountPreferences(): Promise<EsAccountPreferences> {
+    try {
+      const prefs = await this.account.getPrefs();
+      return prefs as EsAccountPreferences;
+    } catch (error) {
+      throw new Error(`Failed to get account preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update account preferences
+   * Merges with existing preferences
+   */
+  async updateAccountPreferences(prefs: EsAccountPreferences): Promise<EsAccountPreferences> {
+    try {
+      const updatedPrefs = await this.account.updatePrefs(prefs);
+      return updatedPrefs as EsAccountPreferences;
+    } catch (error) {
+      throw new Error(`Failed to update account preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== REALTIME SUBSCRIPTIONS ====================
+
+  /**
+   * Subscribe to realtime events
+   * @param channels - Array of channels to subscribe to (e.g., ['documents', 'databases.dbId.collections.collId.documents'])
+   * @param callback - Callback function to handle realtime events
+   * @returns Unsubscribe function to stop listening
+   *
+   * Channel patterns:
+   * - 'documents' - All document events
+   * - 'databases.[DATABASE_ID].collections.[COLLECTION_ID].documents' - All documents in a collection
+   * - 'databases.[DATABASE_ID].collections.[COLLECTION_ID].documents.[DOCUMENT_ID]' - Specific document
+   * - 'files' - All file events
+   * - 'buckets.[BUCKET_ID].files' - All files in a bucket
+   * - 'buckets.[BUCKET_ID].files.[FILE_ID]' - Specific file
+   */
+  subscribe(channels: string[], callback: RealtimeCallback): UnsubscribeFunction {
+    try {
+      const unsubscribe = this.client.subscribe(channels, (response: any) => {
+        callback({
+          events: response.events || [],
+          channels: response.channels || [],
+          timestamp: response.timestamp || Date.now(),
+          payload: response.payload || {}
+        });
+      });
+      return unsubscribe;
+    } catch (error) {
+      throw new Error(`Failed to subscribe to realtime: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Subscribe to document changes in a collection
+   * @param storeId - Database ID
+   * @param tableId - Collection ID
+   * @param callback - Callback function
+   * @returns Unsubscribe function
+   */
+  subscribeToCollection(storeId: string, tableId: string, callback: RealtimeCallback<EsRecord>): UnsubscribeFunction {
+    const channel = `databases.${storeId}.collections.${tableId}.documents`;
+    return this.subscribe([channel], (response) => {
+      if (response.payload) {
+        callback({
+          ...response,
+          payload: this.mapRecord(response.payload)
+        });
+      }
+    });
+  }
+
+  /**
+   * Subscribe to a specific document changes
+   * @param storeId - Database ID
+   * @param tableId - Collection ID
+   * @param recordId - Document ID
+   * @param callback - Callback function
+   * @returns Unsubscribe function
+   */
+  subscribeToDocument(storeId: string, tableId: string, recordId: string, callback: RealtimeCallback<EsRecord>): UnsubscribeFunction {
+    const channel = `databases.${storeId}.collections.${tableId}.documents.${recordId}`;
+    return this.subscribe([channel], (response) => {
+      if (response.payload) {
+        callback({
+          ...response,
+          payload: this.mapRecord(response.payload)
+        });
+      }
+    });
+  }
+
+  /**
+   * Subscribe to file changes in a storage bucket
+   * @param containerId - Bucket ID
+   * @param callback - Callback function
+   * @returns Unsubscribe function
+   */
+  subscribeToBucket(containerId: string, callback: RealtimeCallback<EsAsset>): UnsubscribeFunction {
+    const channel = `buckets.${containerId}.files`;
+    return this.subscribe([channel], (response) => {
+      if (response.payload) {
+        callback({
+          ...response,
+          payload: this.mapAsset(response.payload)
+        });
+      }
+    });
+  }
+
+  /**
+   * Subscribe to a specific file changes
+   * @param containerId - Bucket ID
+   * @param assetId - File ID
+   * @param callback - Callback function
+   * @returns Unsubscribe function
+   */
+  subscribeToFile(containerId: string, assetId: string, callback: RealtimeCallback<EsAsset>): UnsubscribeFunction {
+    const channel = `buckets.${containerId}.files.${assetId}`;
+    return this.subscribe([channel], (response) => {
+      if (response.payload) {
+        callback({
+          ...response,
+          payload: this.mapAsset(response.payload)
+        });
+      }
+    });
   }
 
   // ==================== RECORD OPERATIONS ====================
@@ -593,6 +761,54 @@ export class EsDbClient extends EsDbClientBase {
       return this.mapTeamMember(membership);
     } catch (error) {
       throw new Error(`Failed to get team membership: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update team membership status
+   * Used to accept or reject team invitations
+   * @param teamId - Team identifier
+   * @param membershipId - Membership identifier
+   * @param userId - User identifier
+   * @param secret - Secret from the invitation
+   */
+  async updateMembershipStatus(teamId: string, membershipId: string, userId: string, secret: string): Promise<EsTeamMember> {
+    try {
+      const membership = await this.teams.updateMembershipStatus(teamId, membershipId, userId, secret);
+      return this.mapTeamMember(membership);
+    } catch (error) {
+      throw new Error(`Failed to update membership status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // ==================== TEAM PREFERENCES ====================
+
+  /**
+   * Get team preferences
+   * @param teamId - Team identifier
+   * @returns Team preferences object
+   */
+  async getTeamPreferences(teamId: string): Promise<EsTeamPreferences> {
+    try {
+      const prefs = await this.teams.getPrefs(teamId);
+      return prefs as EsTeamPreferences;
+    } catch (error) {
+      throw new Error(`Failed to get team preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update team preferences
+   * Merges with existing preferences
+   * @param teamId - Team identifier
+   * @param prefs - Preferences object to update
+   */
+  async updateTeamPreferences(teamId: string, prefs: EsTeamPreferences): Promise<EsTeamPreferences> {
+    try {
+      const updatedPrefs = await this.teams.updatePrefs(teamId, prefs);
+      return updatedPrefs as EsTeamPreferences;
+    } catch (error) {
+      throw new Error(`Failed to update team preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

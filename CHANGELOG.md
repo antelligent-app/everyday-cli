@@ -5,6 +5,78 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2026-06-27
+
+### 🎉 Five Powerful New Features
+
+This release adds real-time subscriptions, preferences management, and passwordless authentication. All features verified against Appwrite SDK v26.0.0.
+
+### Added
+
+- **Realtime Subscriptions (Client-Side)** - Subscribe to database and storage changes
+  - `subscribe(channels, callback)` - Generic subscription to multiple channels
+  - `subscribeToCollection(storeId, tableId, callback)` - Subscribe to all documents in a collection
+  - `subscribeToDocument(storeId, tableId, recordId, callback)` - Subscribe to specific document
+  - `subscribeToBucket(containerId, callback)` - Subscribe to all files in a bucket
+  - `subscribeToFile(containerId, assetId, callback)` - Subscribe to specific file
+  - Returns unsubscribe function for cleanup
+  - Full React example with live updates
+
+- **Account Preferences** - Store user-specific settings (64KB limit)
+  - **Client-Side**: `getAccountPreferences()`, `updateAccountPreferences(prefs)`
+  - **Server-Side**: `getAccountPreferences(accountId)`, `updateAccountPreferences(accountId, prefs)`
+  - Preferences automatically merge with existing values
+  - Perfect for themes, language settings, custom user configurations
+
+- **Team Preferences (Client-Side)** - Store team-wide shared settings
+  - `getTeamPreferences(teamId)` - Get team's shared preferences
+  - `updateTeamPreferences(teamId, prefs)` - Update team preferences (requires owner/admin)
+  - Shared by all team members
+  - Ideal for team workflows, project settings, notification configs
+
+- **Magic URL Authentication (Client-Side)** - Passwordless login via email
+  - `sendMagicURL(email, loginUrl?)` - Send passwordless login email
+  - `completeMagicURLSession(userId, secret)` - Complete magic URL authentication
+  - No password required, more secure
+  - Complete authentication flow example
+
+- **Membership Status Updates (Client-Side)** - Accept/reject team invitations
+  - `updateMembershipStatus(teamId, membershipId, userId, secret)` - Accept/reject invitations
+  - Process invitation from email link
+  - Automatically creates session on acceptance
+
+### Changed
+
+- **Type Definitions** - Added new TypeScript types:
+  - `EsAccountPreferences` - Account preferences interface
+  - `EsTeamPreferences` - Team preferences interface
+  - `RealtimeCallback<T>` - Callback type for realtime events
+  - `RealtimeResponseEvent<T>` - Realtime event response structure
+  - `UnsubscribeFunction` - Unsubscribe function type
+  - All types properly exported from client/server/main entry points
+
+- **README.md** - 350+ lines of new documentation:
+  - Updated Features section with 4 new features
+  - Complete Realtime Subscriptions section with 5 methods and React example
+  - Account Preferences documentation for both client and server
+  - Team Preferences documentation with usage examples
+  - Magic URL authentication with complete flow example
+  - Membership status updates documentation
+  - Version header updated to v2.0.5
+
+### Implementation Details
+
+All implementations follow Appwrite SDK patterns:
+- Client methods use session-based authentication
+- Server methods use API key authentication
+- Type-safe with full TypeScript support
+- Error handling with descriptive messages
+- Automatic payload mapping to EsRecord/EsAsset types
+
+**Build Status**: ✅ All code compiles successfully with no TypeScript errors
+
+---
+
 ## [2.0.4] - 2026-06-25
 
 ### 📚 Complete API Documentation

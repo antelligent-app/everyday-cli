@@ -5,7 +5,19 @@
 
 TypeScript client and CLI for EverydaySeries API - Execute flows, manage databases, and work with schemas with full type safety. **Now supports both Node.js (server) and browser (client) environments!**
 
-## 📚 v2.0.4 - Complete API Documentation (Latest)
+## 🎉 v2.0.5 - Realtime, Preferences & Magic URL (Latest)
+
+**5 powerful new features added!** All new features verified against Appwrite SDK v26.0.0.
+
+- ✅ **Realtime Subscriptions** - Subscribe to database and storage changes in real-time
+- ✅ **Account Preferences** - Store user-specific settings (client & server)
+- ✅ **Team Preferences** - Store team-wide shared settings
+- ✅ **Magic URL Authentication** - Passwordless login via email
+- ✅ **Membership Status** - Accept/reject team invitations programmatically
+
+---
+
+## 📚 v2.0.4 - Complete API Documentation
 
 **Documentation complete** - Added all 12 authentication methods + clarified server vs client APIs.
 
@@ -54,8 +66,10 @@ See [Migration Guide](./MIGRATION_V2.md) for upgrading from v1.x.
 - 🚀 **Flow Execution** - Run flows with the EsClient API
 - 🗄️ **Database Operations** - Complete CRUD operations with EsDbClient
 - 🌐 **Dual Environment** - Works in both Node.js (server) and browser (client)
-- 🔐 **Authentication** - Client-side login, OAuth, signup, password recovery
-- 👥 **Teams & Collaboration** - Full team management with roles and permissions
+- 🔐 **Authentication** - Client-side login, OAuth, signup, password recovery, **Magic URL** ⭐
+- 👥 **Teams & Collaboration** - Full team management with roles, permissions, and **team preferences** ⭐
+- 📡 **Realtime Subscriptions** - Subscribe to database and storage changes in real-time ⭐
+- 💾 **User & Team Preferences** - Store custom settings (64KB limit per user/team) ⭐
 - 📋 **Schema Management** - Define, validate, and sync database schemas
 - 🔍 **Type-Safe** - Full TypeScript support with 48+ node types
 - 🛠️ **CLI & Library** - Use as command-line tool or import in your code
@@ -912,6 +926,80 @@ Complete email verification with secret from email.
 await db.completeEmailVerification(userId, secret);
 ```
 
+##### `sendMagicURL(email, loginUrl?)` ⭐ New
+
+Send passwordless login link via email (Magic URL authentication).
+
+```typescript
+// Send magic URL to user's email
+await db.sendMagicURL('user@example.com', 'https://myapp.com/auth/magic-url');
+
+// User clicks the link in email, which includes userId and secret
+// Your app receives these as URL parameters
+```
+
+##### `completeMagicURLSession(userId, secret)` ⭐ New
+
+Complete magic URL authentication and create session.
+
+```typescript
+// Extract userId and secret from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const userId = urlParams.get('userId');
+const secret = urlParams.get('secret');
+
+// Complete the magic URL login
+const account = await db.completeMagicURLSession(userId, secret);
+console.log('Logged in via Magic URL:', account.displayName);
+```
+
+**Magic URL Complete Flow:**
+
+```typescript
+// Step 1: Send magic URL
+await db.sendMagicURL('user@example.com');
+
+// Step 2: User clicks link in email, redirected to your app with userId and secret
+// Step 3: Complete the session
+const params = new URLSearchParams(window.location.search);
+await db.completeMagicURLSession(
+  params.get('userId')!,
+  params.get('secret')!
+);
+```
+
+##### `getAccountPreferences()` ⭐ New
+
+Get user-specific preferences (64KB limit).
+
+```typescript
+const prefs = await db.getAccountPreferences();
+console.log('Theme:', prefs.theme);
+console.log('Language:', prefs.language);
+```
+
+##### `updateAccountPreferences(prefs)` ⭐ New
+
+Update user preferences (merges with existing).
+
+```typescript
+// Set user preferences
+await db.updateAccountPreferences({
+  theme: 'dark',
+  language: 'en',
+  notificationsEnabled: true,
+  customSettings: {
+    fontSize: 16,
+    compactMode: false
+  }
+});
+
+// Update specific preference (merges, doesn't replace)
+await db.updateAccountPreferences({
+  theme: 'light'  // Other prefs remain unchanged
+});
+```
+
 **Complete Authentication Example:**
 
 ```typescript
@@ -1097,6 +1185,62 @@ console.log(`Roles: ${membership.roles.join(', ')}`);
 console.log(`Joined: ${membership.joined}`);
 ```
 
+##### `updateMembershipStatus(teamId, membershipId, userId, secret)` ⭐ New
+
+Accept or reject team invitation using secret from invitation email.
+
+```typescript
+// Extract parameters from invitation URL
+const urlParams = new URLSearchParams(window.location.search);
+const teamId = urlParams.get('teamId');
+const membershipId = urlParams.get('membershipId');
+const userId = urlParams.get('userId');
+const secret = urlParams.get('secret');
+
+// Accept the invitation
+const membership = await db.updateMembershipStatus(
+  teamId!,
+  membershipId!,
+  userId!,
+  secret!
+);
+console.log(`Successfully joined team: ${membership.teamName}`);
+```
+
+##### `getTeamPreferences(teamId)` ⭐ New
+
+Get team-wide shared preferences (64KB limit).
+
+```typescript
+const prefs = await db.getTeamPreferences('team_id');
+console.log('Team Settings:', prefs);
+console.log('Project Mode:', prefs.projectMode);
+```
+
+##### `updateTeamPreferences(teamId, prefs)` ⭐ New
+
+Update team preferences (merges with existing, requires team owner/admin permissions).
+
+```typescript
+// Set team-wide preferences
+await db.updateTeamPreferences('team_id', {
+  projectMode: 'agile',
+  defaultAssignee: 'auto',
+  notifications: {
+    emailEnabled: true,
+    slackEnabled: false
+  },
+  customWorkflows: ['review', 'qa', 'deploy']
+});
+
+// Update specific preference
+await db.updateTeamPreferences('team_id', {
+  projectMode: 'waterfall'  // Other settings remain
+});
+```
+
+**Note:** Team preferences are shared by all team members. For user-specific settings, use [account preferences](#getaccountpreferences--new) instead.
+
 **Complete Team Management Example:**
 
 ```typescript
@@ -1144,6 +1288,170 @@ export function TeamManager() {
 ```
 
 See `examples/teams-usage.tsx` for more comprehensive examples.
+
+#### Realtime Subscriptions (Client-Side Only) ⭐ New
+
+Subscribe to real-time database and storage events. Realtime subscriptions are only available in the client-side package.
+
+##### `subscribe(channels, callback)`
+
+Subscribe to multiple channels with a single callback.
+
+```typescript
+import { EsDbClient, type RealtimeCallback } from '@antelligent-app/everyday-cli/client';
+
+const db = new EsDbClient({
+  projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+});
+
+// Subscribe to multiple channels
+const unsubscribe = db.subscribe(
+  [
+    'databases.main_db.collections.posts.documents',
+    'databases.main_db.collections.users.documents'
+  ],
+  (event) => {
+    console.log('Event:', event.events);
+    console.log('Channels:', event.channels);
+    console.log('Timestamp:', event.timestamp);
+    console.log('Payload:', event.payload);
+  }
+);
+
+// Later: unsubscribe when done
+unsubscribe();
+```
+
+**Channel Patterns:**
+- `'documents'` - All document events across all databases
+- `'databases.[DATABASE_ID].collections.[COLLECTION_ID].documents'` - All documents in a collection
+- `'databases.[DATABASE_ID].collections.[COLLECTION_ID].documents.[DOCUMENT_ID]'` - Specific document
+- `'files'` - All file events
+- `'buckets.[BUCKET_ID].files'` - All files in a bucket
+- `'buckets.[BUCKET_ID].files.[FILE_ID]'` - Specific file
+
+##### `subscribeToCollection(storeId, tableId, callback)`
+
+Subscribe to all document changes in a collection.
+
+```typescript
+const unsubscribe = db.subscribeToCollection(
+  'main_db',
+  'posts',
+  (event) => {
+    const post = event.payload;  // Automatically mapped to EsRecord
+    console.log(`Post ${event.events[0]}:`, post.uid);
+    console.log('Data:', post.payload);
+  }
+);
+```
+
+**Event Types:**
+- `databases.*.collections.*.documents.*.create` - Document created
+- `databases.*.collections.*.documents.*.update` - Document updated
+- `databases.*.collections.*.documents.*.delete` - Document deleted
+
+##### `subscribeToDocument(storeId, tableId, recordId, callback)`
+
+Subscribe to a specific document changes.
+
+```typescript
+const unsubscribe = db.subscribeToDocument(
+  'main_db',
+  'posts',
+  'post_123',
+  (event) => {
+    if (event.events.includes('update')) {
+      console.log('Post updated:', event.payload);
+    } else if (event.events.includes('delete')) {
+      console.log('Post deleted');
+    }
+  }
+);
+```
+
+##### `subscribeToBucket(containerId, callback)`
+
+Subscribe to all file changes in a storage bucket.
+
+```typescript
+const unsubscribe = db.subscribeToBucket('user_uploads', (event) => {
+  const file = event.payload;  // Automatically mapped to EsAsset
+  console.log(`File ${event.events[0]}:`, file.filename);
+  console.log('Size:', file.byteSize);
+});
+```
+
+##### `subscribeToFile(containerId, assetId, callback)`
+
+Subscribe to a specific file changes.
+
+```typescript
+const unsubscribe = db.subscribeToFile(
+  'user_uploads',
+  'file_123',
+  (event) => {
+    console.log('File event:', event.events[0]);
+  }
+);
+```
+
+**Complete Realtime Example (React):**
+
+```typescript
+'use client';
+import { useState, useEffect } from 'react';
+import { EsDbClient } from '@antelligent-app/everyday-cli/client';
+
+export function RealtimePosts() {
+  const [posts, setPosts] = useState([]);
+
+  const db = new EsDbClient({
+    projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!
+  });
+
+  useEffect(() => {
+    // Load initial posts
+    async function loadPosts() {
+      const result = await db.fetchRecords('main_db', 'posts');
+      setPosts(result.items);
+    }
+    loadPosts();
+
+    // Subscribe to real-time updates
+    const unsubscribe = db.subscribeToCollection(
+      'main_db',
+      'posts',
+      (event) => {
+        if (event.events.includes('create')) {
+          setPosts(prev => [...prev, event.payload]);
+        } else if (event.events.includes('update')) {
+          setPosts(prev =>
+            prev.map(p => p.uid === event.payload.uid ? event.payload : p)
+          );
+        } else if (event.events.includes('delete')) {
+          setPosts(prev => prev.filter(p => p.uid !== event.payload.uid));
+        }
+      }
+    );
+
+    // Cleanup on unmount
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div>
+      <h2>Live Posts ({posts.length})</h2>
+      {posts.map(post => (
+        <div key={post.uid}>
+          <h3>{post.payload.title}</h3>
+          <p>{post.payload.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
 
 ### Schema Commands
 
